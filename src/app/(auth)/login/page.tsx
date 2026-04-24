@@ -7,11 +7,12 @@ import LogoMark from '@/components/auth/LogoMark';
 
 type Role = 'lead' | 'stump' | 'admin';
 
+// Rendered into a 2-col CSS grid: row 1 = C, D · row 2 = A, B
 const QUAD_CELLS = [
-  ['Quadrant A', 'Coordination'],
-  ['Quadrant B', 'Communication'],
   ['Quadrant C', 'Knowledge'],
   ['Quadrant D', 'Exchange'],
+  ['Quadrant A', 'Coordination'],
+  ['Quadrant B', 'Communication'],
 ] as const;
 
 const HIER_PILLS = [
@@ -60,21 +61,13 @@ export default function LoginPage() {
         </div>
 
         <div className="brand-centre">
-          <div style={{ position: 'relative' }}>
-            <div className="quad-grid">
-              {QUAD_CELLS.map(([qlabel, qtitle]) => (
-                <div key={qlabel} className="quad-cell">
-                  <div className="q-label">{qlabel}</div>
-                  <div className="q-title">{qtitle}</div>
-                </div>
-              ))}
-            </div>
-            <div className="float-badge b1">
-              <span className="dot-gold" />OKR → KPI validated
-            </div>
-            <div className="float-badge b2">
-              <span className="dot-cyan" />Triad logic active
-            </div>
+          <div className="quad-grid">
+            {QUAD_CELLS.map(([qlabel, qtitle]) => (
+              <div key={qlabel} className="quad-cell">
+                <div className="q-label">{qlabel}</div>
+                <div className="q-title">{qtitle}</div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -212,28 +205,6 @@ export default function LoginPage() {
             )}
           </button>
 
-          {/* Or divider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', margin: '22px 0', fontSize: '12px', color: 'var(--muted)', fontWeight: 500 }}>
-            <span style={{ flex: 1, height: '1px', background: 'var(--border)', display: 'block' }} />
-            or continue with
-            <span style={{ flex: 1, height: '1px', background: 'var(--border)', display: 'block' }} />
-          </div>
-
-          {/* SSO */}
-          <button className="btn-sso" type="button">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><path d="M14 17h7m-3.5-3.5v7" />
-            </svg>
-            Single Sign-On (SSO)
-          </button>
-
-          {/* Footer */}
-          <div style={{ marginTop: '28px', textAlign: 'center', fontSize: '13px', color: 'var(--muted)' }}>
-            New to VSG?{' '}
-            <a href="#" style={{ color: 'var(--gold)', fontWeight: 600, textDecoration: 'none' }}>
-              Request platform access →
-            </a>
-          </div>
 
         </div>
       </main>

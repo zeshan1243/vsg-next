@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { getMolecule } from '@/lib/molecules';
+import { getCompletedQuads, getQuadMaxStep, isQuadUnlocked, type Quad } from '@/lib/progress';
 
 type PillColor = 'gold' | 'blue' | 'red' | 'green';
 type QuadColor = 'red' | 'green' | 'gold' | 'blue';
@@ -12,6 +13,7 @@ interface Pill { label: string; color: PillColor; }
 interface QuadDef {
   code: string;
   name: string;
+  quad: Quad;
   iconCls: QuadColor;
   icon: ReactNode;
   pills: Pill[];
@@ -54,6 +56,47 @@ const ChatIcon = (
   </svg>
 );
 
+const MOL_OBJECTIVE = "Host the city's premier wedding event, connecting attendees with top local vendors across all four operational quadrants.";
+const MOL_VISION = "Become the most trusted annual wedding showcase in the region — a curated marketplace where couples meet vetted vendors, partners unlock meaningful reach, and every edition sets a higher bar for quality, experience, and inclusion.";
+
+interface QuadInfo {
+  code: string;
+  name: string;
+  type: 'Internal' | 'External';
+  workfields: string[];
+  objective: string;
+}
+const QUAD_INFO: Record<Quad, QuadInfo> = {
+  a: {
+    code: 'Quadrant A',
+    name: 'Coordinate',
+    type: 'Internal',
+    workfields: ['Vendors', 'Partners', 'Location', 'Attendance'],
+    objective: 'Define high-level OKRs that set direction for the molecule',
+  },
+  b: {
+    code: 'Quadrant B',
+    name: 'Communication',
+    type: 'Internal',
+    workfields: ['Vendors', 'Partners', 'Location', 'Attendance'],
+    objective: 'Define measurable KPIs against each Coordinate OKR',
+  },
+  c: {
+    code: 'Quadrant C',
+    name: 'Knowledge',
+    type: 'External',
+    workfields: ['Vendors', 'Partners', 'Location', 'Attendance'],
+    objective: 'Break each KPI down into concrete jobs to be executed',
+  },
+  d: {
+    code: 'Quadrant D',
+    name: 'Exchange',
+    type: 'External',
+    workfields: ['Vendors', 'Partners', 'Location', 'Attendance'],
+    objective: 'Execute jobs as granular, trackable tasks',
+  },
+};
+
 const PIE_SECTORS = [
   {
     code: 'Q-D', label: 'Exchange',
@@ -94,20 +137,26 @@ const PILLS_BOTTOM: Pill[] = [
   { label: 'OKRs',  color: 'gold' },
 ];
 
+const PILL_STEP: Record<string, number> = { OKRs: 1, KPIs: 2, Jobs: 3, Tasks: 4 };
+
 function QuadCard({
   code, name, iconCls, icon, pills,
-  selected, onSelect,
-}: QuadDef & { selected: boolean; onSelect: () => void }) {
+  disabled, maxStep, onPillClick,
+}: QuadDef & {
+  disabled: boolean;
+  maxStep: number;
+  onPillClick: (step: number) => void;
+}) {
   return (
-    <button
-      type="button"
-      className={`ov-quad${selected ? ` ov-quad-sel ov-quad-sel-${iconCls}` : ''}`}
-      onClick={onSelect}
+    <div
+      className={`ov-quad${disabled ? ' ov-quad-locked' : ''}`}
+      aria-disabled={disabled}
     >
-      {selected && (
-        <div className="ov-quad-check">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
+      {disabled && (
+        <div className="ov-quad-lock">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
         </div>
       )}
@@ -119,11 +168,25 @@ function QuadCard({
         </div>
       </div>
       <div className="ov-quad-pills">
-        {pills.map((p, i) => (
-          <span key={`${p.label}-${i}`} className={`ov-pill pill-${p.color}`}>{p.label}</span>
-        ))}
+        {pills.map((p, i) => {
+          const pillStep = PILL_STEP[p.label] ?? 1;
+          // OKRs (step 1) is always enabled when the card is unlocked.
+          // Later stacks require the corresponding step to have been reached.
+          const pillEnabled = !disabled && (pillStep === 1 || maxStep >= pillStep);
+          return (
+            <button
+              key={`${p.label}-${i}`}
+              type="button"
+              className={`ov-pill pill-${p.color}${pillEnabled ? '' : ' ov-pill--locked'}`}
+              disabled={!pillEnabled}
+              onClick={() => pillEnabled && onPillClick(pillStep)}
+            >
+              {p.label}
+            </button>
+          );
+        })}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -132,18 +195,46 @@ export default function MoleculeOverviewPage() {
   const router = useRouter();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
-  const [selectedQuad, setSelectedQuad] = useState<string | null>(null);
+  const [completedQuads, setCompletedQuads] = useState<Quad[]>([]);
+  const [maxSteps, setMaxSteps] = useState<Record<Quad, number>>({ a: 0, b: 0, c: 0, d: 0 });
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [quadModal, setQuadModal] = useState<Quad | null>(null);
+  const [showCards, setShowCards] = useState(false);
+
+  useEffect(() => {
+    if (!infoOpen && quadModal === null) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      setInfoOpen(false);
+      setQuadModal(null);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [infoOpen, quadModal]);
+
+  useEffect(() => {
+    if (!id) return;
+    setCompletedQuads(getCompletedQuads(id));
+    setMaxSteps({
+      a: getQuadMaxStep(id, 'a'),
+      b: getQuadMaxStep(id, 'b'),
+      c: getQuadMaxStep(id, 'c'),
+      d: getQuadMaxStep(id, 'd'),
+    });
+  }, [id]);
 
   if (!mol) return null;
 
   const QUADS: QuadDef[] = [
-    { code: 'Q-C', name: 'Knowledge',     iconCls: 'red',   icon: BookIcon,     pills: PILLS_TOP,    route: `/molecules/${id}/quadrant-c` },
-    { code: 'Q-D', name: 'Exchange',      iconCls: 'green', icon: ExchangeIcon, pills: PILLS_TOP,    route: `/molecules/${id}/quadrant-d` },
-    { code: 'Q-A', name: 'Coordinate',    iconCls: 'gold',  icon: GlobeIcon,    pills: PILLS_BOTTOM, route: `/molecules/${id}/quadrant-a` },
-    { code: 'Q-B', name: 'Communication', iconCls: 'blue',  icon: ChatIcon,     pills: PILLS_BOTTOM, route: `/molecules/${id}/quadrant-b` },
+    { code: 'Q-C', name: 'Knowledge',     quad: 'c', iconCls: 'red',   icon: BookIcon,     pills: PILLS_TOP,    route: `/molecules/${id}/quadrant-c` },
+    { code: 'Q-D', name: 'Exchange',      quad: 'd', iconCls: 'green', icon: ExchangeIcon, pills: PILLS_TOP,    route: `/molecules/${id}/quadrant-d` },
+    { code: 'Q-A', name: 'Coordinate',    quad: 'a', iconCls: 'gold',  icon: GlobeIcon,    pills: PILLS_BOTTOM, route: `/molecules/${id}/quadrant-a` },
+    { code: 'Q-B', name: 'Communication', quad: 'b', iconCls: 'blue',  icon: ChatIcon,     pills: PILLS_BOTTOM, route: `/molecules/${id}/quadrant-b` },
   ];
 
-  const activeQuad = QUADS.find(q => q.code === selectedQuad);
+  function goToStep(q: QuadDef, step: number) {
+    router.push(step > 1 ? `${q.route}?step=${step}` : q.route);
+  }
 
   return (
     <>
@@ -163,9 +254,7 @@ export default function MoleculeOverviewPage() {
         <div className="ov-header">
           <div>
             <h1 className="ov-title">{mol.name}</h1>
-            <p className="ov-desc">
-              Host the city&apos;s premier wedding event, connecting attendees with top local vendors across all four operational quadrants.
-            </p>
+            <p className="ov-desc">{MOL_OBJECTIVE}</p>
           </div>
           <div className="lead-pill">
             <div className="lead-label">LEAD</div>
@@ -175,27 +264,69 @@ export default function MoleculeOverviewPage() {
         </div>
 
         {/* Hero: pie + quadrants */}
-        <div className="ov-hero">
+        <div className={`ov-hero${showCards ? '' : ' ov-hero--pie-only'}`}>
           <div className="ov-pie-wrap">
             <svg
-              viewBox="0 0 340 340"
-              width="340"
-              height="340"
+              viewBox="-20 -20 380 380"
+              width="380"
+              height="380"
               style={{ display: 'block', filter: 'drop-shadow(0 8px 24px rgba(13,27,42,.1))' }}
             >
+              {/* Outer progress ring — 25% per completed quadrant */}
+              {(() => {
+                const r = 178;
+                const circumference = 2 * Math.PI * r;
+                const progressPct = completedQuads.length * 25;
+                const pct = Math.max(0, Math.min(100, progressPct)) / 100;
+                const dashOffset = circumference * (1 - pct);
+                return (
+                  <g transform="rotate(-90 170 170)">
+                    <circle
+                      cx="170" cy="170" r={r}
+                      fill="none"
+                      stroke="var(--border)"
+                      strokeWidth="6"
+                    />
+                    <circle
+                      cx="170" cy="170" r={r}
+                      fill="none"
+                      stroke="var(--gold)"
+                      strokeWidth="6"
+                      strokeLinecap="round"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={dashOffset}
+                      style={{ transition: 'stroke-dashoffset .4s ease' }}
+                    />
+                  </g>
+                );
+              })()}
+
+              {/* Progress label bubble at top of ring */}
+              <g>
+                <circle cx="170" cy="-8" r="20" fill="var(--navy)" />
+                <text
+                  x="170" y="-4"
+                  textAnchor="middle"
+                  fontFamily="Syne, sans-serif"
+                  fontSize="11"
+                  fontWeight="800"
+                  fill="white"
+                >{completedQuads.length * 25}%</text>
+              </g>
+
               {PIE_SECTORS.map(s => {
-                const isSel = selectedQuad === s.code;
-                const hasSel = selectedQuad !== null;
+                const quadKey = s.code.slice(-1).toLowerCase() as Quad;
+                const isCompleted = completedQuads.includes(quadKey);
+                // 50% opacity until the quadrant is completed, 100% after.
                 return (
                   <g
                     key={s.code}
                     style={{
-                      transform: isSel ? `translate(${s.dx}px, ${s.dy}px)` : 'translate(0,0)',
-                      opacity: hasSel && !isSel ? 0.45 : 1,
-                      transition: 'transform .22s ease, opacity .22s ease',
+                      opacity: isCompleted ? 1 : 0.5,
+                      transition: 'opacity .22s ease',
                       cursor: 'pointer',
                     }}
-                    onClick={() => setSelectedQuad(prev => prev === s.code ? null : s.code)}
+                    onClick={() => setQuadModal(quadKey)}
                   >
                     <path
                       d={s.d}
@@ -229,46 +360,58 @@ export default function MoleculeOverviewPage() {
                   </g>
                 );
               })}
-              <circle cx="170" cy="170" r="24" fill="white" style={{ pointerEvents: 'none' }} />
+              <g style={{ cursor: 'pointer' }} onClick={() => setInfoOpen(true)}>
+                <circle cx="170" cy="170" r="24" fill="white" />
+                <circle cx="170" cy="170" r="24" fill="transparent" stroke="var(--border)" strokeWidth="1" />
+                <text
+                  x="170" y="174"
+                  textAnchor="middle"
+                  fontFamily="Syne, sans-serif"
+                  fontSize="13"
+                  fontWeight="800"
+                  fill="var(--navy)"
+                >i</text>
+              </g>
             </svg>
-          </div>
 
-          <div className="ov-quads">
-            {QUADS.slice(0, 2).map(q => (
-              <QuadCard
-                key={q.code} {...q}
-                selected={selectedQuad === q.code}
-                onSelect={() => setSelectedQuad(prev => prev === q.code ? null : q.code)}
-              />
-            ))}
-            <div className="ov-quad-progress">
-              <div className="ov-quad-progress-fill" style={{ width: `${mol.progress}%` }} />
-            </div>
-            {QUADS.slice(2).map(q => (
-              <QuadCard
-                key={q.code} {...q}
-                selected={selectedQuad === q.code}
-                onSelect={() => setSelectedQuad(prev => prev === q.code ? null : q.code)}
-              />
-            ))}
-          </div>
-
-          {/* Enter quadrant action */}
-          <div className={`ov-quad-action${activeQuad ? ' visible' : ''}`}>
-            <span className="ov-quad-action-hint">
-              {activeQuad ? `${activeQuad.code} · ${activeQuad.name} selected` : ''}
-            </span>
             <button
               type="button"
-              className="ov-quad-action-btn"
-              onClick={() => activeQuad && router.push(activeQuad.route)}
+              className="ov-toggle-cards"
+              onClick={() => setShowCards(v => !v)}
+              aria-expanded={showCards}
             >
-              Enter Quadrant
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+              {showCards ? 'Hide Inner Structure' : 'Show Inner Structure'}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: showCards ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}
+              >
+                <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
           </div>
+
+          {showCards && (
+            <div className="ov-quads">
+              {QUADS.slice(0, 2).map(q => (
+                <QuadCard
+                  key={q.code} {...q}
+                  disabled={!isQuadUnlocked(q.quad, completedQuads)}
+                  maxStep={maxSteps[q.quad]}
+                  onPillClick={step => goToStep(q, step)}
+                />
+              ))}
+              <div className="ov-quad-progress">
+                <div className="ov-quad-progress-fill" style={{ width: `${completedQuads.length * 25}%` }} />
+              </div>
+              {QUADS.slice(2).map(q => (
+                <QuadCard
+                  key={q.code} {...q}
+                  disabled={!isQuadUnlocked(q.quad, completedQuads)}
+                  maxStep={maxSteps[q.quad]}
+                  onPillClick={step => goToStep(q, step)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Bottom: team + details */}
@@ -311,6 +454,136 @@ export default function MoleculeOverviewPage() {
         </div>
 
       </div>
+
+      {quadModal !== null && (() => {
+        const info = QUAD_INFO[quadModal];
+        return (
+          <div className="ov-modal-overlay" onClick={() => setQuadModal(null)}>
+            <div className="ov-modal ov-modal--wide" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+              <div className="ov-modal-header">
+                <div className="ov-modal-eyebrow">{info.code}</div>
+                <button
+                  type="button"
+                  className="ov-modal-close"
+                  onClick={() => setQuadModal(null)}
+                  aria-label="Close"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="ov-modal-body">
+                <div className="ov-modal-field">
+                  <div className="ov-modal-field-label">Name</div>
+                  <div className="ov-modal-field-value ov-modal-field-value--title">{info.name}</div>
+                </div>
+
+                <div className="ov-modal-grid">
+                  <div className="ov-modal-field">
+                    <div className="ov-modal-field-label">Type</div>
+                    <div className="ov-modal-field-value">{info.type}</div>
+                  </div>
+                  <div className="ov-modal-field">
+                    <div className="ov-modal-field-label">Workfields</div>
+                    <div className="ov-modal-workfields">
+                      {info.workfields.map(w => (
+                        <span key={w} className="ov-modal-chip">{w}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="ov-modal-field">
+                  <div className="ov-modal-field-label">Objective</div>
+                  <div className="ov-modal-field-value">{info.objective}</div>
+                </div>
+
+                {/* Molecule Structure — Outer Stack */}
+                <div className="ov-modal-section">
+                  <div className="ov-modal-section-title">
+                    Molecule Structure <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>( Outer Stack )</span>
+                  </div>
+                  <div className="ms-quad-grid" style={{ marginTop: '10px' }}>
+                    <div className="ms-quad-cell red">
+                      <div className="ms-quad-label">Q·C</div>
+                      <div className="ms-quad-name">Knowledge</div>
+                    </div>
+                    <div className="ms-quad-cell green">
+                      <div className="ms-quad-label">Q·D</div>
+                      <div className="ms-quad-name">Exchange</div>
+                    </div>
+                    <div className="ms-quad-cell gold">
+                      <div className="ms-quad-label">Q·A</div>
+                      <div className="ms-quad-name">Coordination</div>
+                    </div>
+                    <div className="ms-quad-cell blue">
+                      <div className="ms-quad-label">Q·B</div>
+                      <div className="ms-quad-name">Communication</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Molecule Structure — Inner Stack */}
+                <div className="ov-modal-section">
+                  <div className="ov-modal-section-title">
+                    Molecule Structure <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>( Inner Stack )</span>
+                  </div>
+                  <div className="inner-stack-grid" style={{ marginTop: '10px' }}>
+                    {(['jobs', 'tasks', 'okrs', 'kpis'] as const).map(key => (
+                      <div key={key} className={`stack-cell ${key}`}>
+                        <div className="stack-cell-label">
+                          {key === 'jobs' ? 'Jobs' : key === 'tasks' ? 'Tasks' : key === 'okrs' ? 'OKRs' : 'KPIs'}
+                        </div>
+                        <div className="stack-pills">
+                          {['Locations', 'Attendance', 'Vendors', 'Partners'].map(p => (
+                            <div key={p} className="stack-pill">{p}</div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {infoOpen && (
+        <div className="ov-modal-overlay" onClick={() => setInfoOpen(false)}>
+          <div className="ov-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="ov-modal-header">
+              <div className="ov-modal-eyebrow">Molecule Summary</div>
+              <button
+                type="button"
+                className="ov-modal-close"
+                onClick={() => setInfoOpen(false)}
+                aria-label="Close"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ov-modal-body">
+              <div className="ov-modal-field">
+                <div className="ov-modal-field-label">Molecule Name</div>
+                <div className="ov-modal-field-value ov-modal-field-value--title">{mol.name}</div>
+              </div>
+              <div className="ov-modal-field">
+                <div className="ov-modal-field-label">Objective</div>
+                <div className="ov-modal-field-value">{MOL_OBJECTIVE}</div>
+              </div>
+              <div className="ov-modal-field">
+                <div className="ov-modal-field-label">Vision Statement</div>
+                <div className="ov-modal-field-value">{MOL_VISION}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

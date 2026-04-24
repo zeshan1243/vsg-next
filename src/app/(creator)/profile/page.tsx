@@ -1,26 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-
-interface NotifState {
-  molecules: boolean;
-  flags: boolean;
-  team: boolean;
-  digest: boolean;
-}
-
 export default function ProfilePage() {
-  const [notifs, setNotifs] = useState<NotifState>({
-    molecules: true,
-    flags: true,
-    team: true,
-    digest: false,
-  });
-
-  function toggle(key: keyof NotifState) {
-    setNotifs(prev => ({ ...prev, [key]: !prev[key] }));
-  }
-
   return (
     <>
       {/* ── Topbar ── */}
@@ -147,64 +127,6 @@ export default function ProfilePage() {
                 </div>
                 <div className="form-actions">
                   <button className="fc-btn-primary" type="button">Update Password</button>
-                </div>
-              </div>
-            </div>
-
-            {/* Notifications */}
-            <div className="profile-form-card" style={{ animationDelay: '.24s' }}>
-              <div className="panel-card-header">
-                <div className="panel-card-title">Notifications</div>
-                <div className="panel-card-sub">Choose how you&apos;d like to be notified</div>
-              </div>
-              <div className="panel-card-body">
-                <div className="toggle-row">
-                  <div className="toggle-text">
-                    <div className="toggle-label">Molecule Updates</div>
-                    <div className="toggle-desc">Get notified when molecules progress to new phases</div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`toggle-sw${notifs.molecules ? ' on' : ''}`}
-                    onClick={() => toggle('molecules')}
-                    aria-pressed={notifs.molecules}
-                  />
-                </div>
-                <div className="toggle-row">
-                  <div className="toggle-text">
-                    <div className="toggle-label">Flag &amp; Warning Alerts</div>
-                    <div className="toggle-desc">Immediate alerts when flags or warnings are raised</div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`toggle-sw${notifs.flags ? ' on' : ''}`}
-                    onClick={() => toggle('flags')}
-                    aria-pressed={notifs.flags}
-                  />
-                </div>
-                <div className="toggle-row">
-                  <div className="toggle-text">
-                    <div className="toggle-label">Team Activity</div>
-                    <div className="toggle-desc">Notifications when team members join or change roles</div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`toggle-sw${notifs.team ? ' on' : ''}`}
-                    onClick={() => toggle('team')}
-                    aria-pressed={notifs.team}
-                  />
-                </div>
-                <div className="toggle-row">
-                  <div className="toggle-text">
-                    <div className="toggle-label">Email Digest</div>
-                    <div className="toggle-desc">Weekly summary of all workspace activity</div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`toggle-sw${notifs.digest ? ' on' : ''}`}
-                    onClick={() => toggle('digest')}
-                    aria-pressed={notifs.digest}
-                  />
                 </div>
               </div>
             </div>

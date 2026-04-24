@@ -6,8 +6,11 @@ import { useMemo, useState } from 'react';
 import { getMolecule } from '@/lib/molecules';
 
 type ReqStatus = 'pending' | 'approved' | 'rejected' | 'review';
-type ReqType = 'resource' | 'budget' | 'access' | 'leave' | 'equipment';
+type ReqType =
+  | 'resource' | 'budget' | 'access' | 'leave' | 'equipment'
+  | 'update' | 'meeting' | 'info' | 'feedback' | 'broadcast';
 type Priority = 'High' | 'Medium' | 'Low';
+type ReqCategory = 'approval' | 'communication';
 
 interface Person {
   name: string;
@@ -19,6 +22,7 @@ interface Person {
 interface Request {
   id: string;
   title: string;
+  category: ReqCategory;
   by: Person;
   for: Person;
   type: ReqType;
@@ -53,7 +57,7 @@ const ORANGE_GRAD = 'linear-gradient(135deg,var(--orange),#F0B254)';
 
 const REQUESTS: Request[] = [
   {
-    id: 'REQ-2026-001', title: 'Additional Development Resources',
+    id: 'REQ-2026-001', title: 'Additional Development Resources', category: 'approval',
     by:  { name: 'John Griffin', initials: 'JG', gradient: GOLD_GRAD, role: 'Engineering Lead' },
     for: { name: 'John Griffin', initials: 'JG', gradient: GOLD_GRAD, role: 'Engineering Lead' },
     type: 'resource', typeLabel: 'Resource Request',
@@ -62,7 +66,7 @@ const REQUESTS: Request[] = [
     department: 'Engineering', budget: '$45,000',
   },
   {
-    id: 'REQ-2026-002', title: 'Marketing Budget Increase',
+    id: 'REQ-2026-002', title: 'Marketing Budget Increase', category: 'approval',
     by:  { name: 'Sarah Mitchell', initials: 'SM', gradient: CYAN_GRAD, role: 'Marketing Manager' },
     for: { name: 'Sarah Mitchell', initials: 'SM', gradient: CYAN_GRAD, role: 'Marketing Manager' },
     type: 'budget', typeLabel: 'Budget Request',
@@ -71,7 +75,7 @@ const REQUESTS: Request[] = [
     department: 'Marketing', budget: '$30,000',
   },
   {
-    id: 'REQ-2026-003', title: 'System Admin Access Request',
+    id: 'REQ-2026-003', title: 'System Admin Access Request', category: 'approval',
     by:  { name: 'Mike Chan', initials: 'MC', gradient: GREEN_GRAD, role: 'DevOps Engineer' },
     for: { name: 'Mike Chan', initials: 'MC', gradient: GREEN_GRAD, role: 'DevOps Engineer' },
     type: 'access', typeLabel: 'Access Request',
@@ -80,7 +84,7 @@ const REQUESTS: Request[] = [
     department: 'DevOps', budget: 'N/A',
   },
   {
-    id: 'REQ-2026-004', title: 'Annual Leave — Holiday Season',
+    id: 'REQ-2026-004', title: 'Annual Leave — Holiday Season', category: 'approval',
     by:  { name: 'Kelly Davis', initials: 'KD', gradient: PURPLE_GRAD, role: 'Project Coordinator' },
     for: { name: 'Emily Davis', initials: 'ED', gradient: PURPLE_GRAD, role: 'Event Planner' },
     type: 'leave', typeLabel: 'Leave Request',
@@ -89,7 +93,7 @@ const REQUESTS: Request[] = [
     department: 'Operations', budget: 'N/A',
   },
   {
-    id: 'REQ-2026-005', title: 'New MacBook Pro for Design Team',
+    id: 'REQ-2026-005', title: 'New MacBook Pro for Design Team', category: 'approval',
     by:  { name: 'Alex Wilson', initials: 'AW', gradient: GOLD_GRAD, role: 'Design Lead' },
     for: { name: 'Alex Wilson', initials: 'AW', gradient: GOLD_GRAD, role: 'Design Lead' },
     type: 'equipment', typeLabel: 'Equipment Request',
@@ -98,7 +102,7 @@ const REQUESTS: Request[] = [
     department: 'Design', budget: '$10,500',
   },
   {
-    id: 'REQ-2026-006', title: 'Conference Room Booking System',
+    id: 'REQ-2026-006', title: 'Conference Room Booking System', category: 'approval',
     by:  { name: 'Lisa Brown', initials: 'LB', gradient: CYAN_GRAD, role: 'Operations Analyst' },
     for: { name: 'Lisa Brown', initials: 'LB', gradient: CYAN_GRAD, role: 'Operations Analyst' },
     type: 'resource', typeLabel: 'Resource Request',
@@ -107,7 +111,7 @@ const REQUESTS: Request[] = [
     department: 'Operations', budget: '$8,500',
   },
   {
-    id: 'REQ-2026-007', title: 'Q1 Training Budget',
+    id: 'REQ-2026-007', title: 'Q1 Training Budget', category: 'approval',
     by:  { name: 'David Lee', initials: 'DL', gradient: GREEN_GRAD, role: 'HR Manager' },
     for: { name: 'David Lee', initials: 'DL', gradient: GREEN_GRAD, role: 'HR Manager' },
     type: 'budget', typeLabel: 'Budget Request',
@@ -116,7 +120,7 @@ const REQUESTS: Request[] = [
     department: 'Human Resources', budget: '$18,000',
   },
   {
-    id: 'REQ-2026-008', title: 'VPN Access for Remote Team',
+    id: 'REQ-2026-008', title: 'VPN Access for Remote Team', category: 'approval',
     by:  { name: 'Rachel Green', initials: 'RG', gradient: ORANGE_GRAD, role: 'Remote Ops Lead' },
     for: { name: 'Rachel Green', initials: 'RG', gradient: ORANGE_GRAD, role: 'Remote Ops Lead' },
     type: 'access', typeLabel: 'Access Request',
@@ -125,7 +129,7 @@ const REQUESTS: Request[] = [
     department: 'IT Security', budget: '$2,400',
   },
   {
-    id: 'REQ-2026-009', title: 'Standing Desks for Engineering',
+    id: 'REQ-2026-009', title: 'Standing Desks for Engineering', category: 'approval',
     by:  { name: 'Tom Harris', initials: 'TH', gradient: PURPLE_GRAD, role: 'Engineering Manager' },
     for: { name: 'Tom Harris', initials: 'TH', gradient: PURPLE_GRAD, role: 'Engineering Manager' },
     type: 'equipment', typeLabel: 'Equipment Request',
@@ -134,13 +138,69 @@ const REQUESTS: Request[] = [
     department: 'Engineering', budget: '$6,400',
   },
   {
-    id: 'REQ-2026-010', title: 'Parental Leave Extension',
+    id: 'REQ-2026-010', title: 'Parental Leave Extension', category: 'approval',
     by:  { name: 'Nina Patel', initials: 'NP', gradient: CYAN_GRAD, role: 'Senior Designer' },
     for: { name: 'Nina Patel', initials: 'NP', gradient: CYAN_GRAD, role: 'Senior Designer' },
     type: 'leave', typeLabel: 'Leave Request',
     date: 'Dec 14, 2025', status: 'review', statusLabel: 'In Review', priority: 'Medium',
     description: 'Requesting a 4-week extension to parental leave (originally ending Jan 15). The additional time is needed for childcare transition. All design deliverables for Q1 have been pre-completed and handed off.',
     department: 'Design', budget: 'N/A',
+  },
+
+  // ── Communication requests ──
+  {
+    id: 'COM-2026-001', title: 'Weekly status update — Wedding Expo', category: 'communication',
+    by:  { name: 'Marcus Reeves', initials: 'MR', gradient: CYAN_GRAD, role: 'Molecule Lead' },
+    for: { name: 'Sarah Kaplan',  initials: 'SK', gradient: GOLD_GRAD, role: 'Creator' },
+    type: 'update', typeLabel: 'Status Update',
+    date: 'Dec 22, 2025', status: 'pending', statusLabel: 'Awaiting Reply', priority: 'Medium',
+    description: 'Sharing weekly progress on Premier Wedding Expo. Vendor signups at 42/50, ticket pre-sales hit 380. Need Creator sign-off on Phase 2 expansion before Dec 28.',
+    department: 'Operations', budget: 'N/A',
+  },
+  {
+    id: 'COM-2026-002', title: 'Q1 roadmap review meeting', category: 'communication',
+    by:  { name: 'Aisha Patel',   initials: 'AP', gradient: PURPLE_GRAD, role: 'Product Lead' },
+    for: { name: 'Marcus Reeves', initials: 'MR', gradient: CYAN_GRAD,   role: 'Molecule Lead' },
+    type: 'meeting', typeLabel: 'Meeting Request',
+    date: 'Dec 21, 2025', status: 'approved', statusLabel: 'Confirmed', priority: 'High',
+    description: 'Propose a 90-min Q1 roadmap review on Jan 8, 10:00 AM. Agenda: OKR alignment, KPI targets, risk review, resourcing. Requesting calendar confirmation.',
+    department: 'Product', budget: 'N/A',
+  },
+  {
+    id: 'COM-2026-003', title: 'Clarification on booth layout spec', category: 'communication',
+    by:  { name: 'Lena Wong',     initials: 'LW', gradient: GREEN_GRAD, role: 'Venue Coordinator' },
+    for: { name: 'Alex Wilson',   initials: 'AW', gradient: GOLD_GRAD,  role: 'Design Lead' },
+    type: 'info', typeLabel: 'Info Request',
+    date: 'Dec 20, 2025', status: 'pending', statusLabel: 'Awaiting Reply', priority: 'High',
+    description: 'Need clarification on the 3m × 3m booth variant — is the corner unit spec finalized? Vendor onboarding is blocked until layout sheets are distributed.',
+    department: 'Operations', budget: 'N/A',
+  },
+  {
+    id: 'COM-2026-004', title: 'Feedback on marketing pitch deck v3', category: 'communication',
+    by:  { name: 'Sarah Mitchell', initials: 'SM', gradient: CYAN_GRAD, role: 'Marketing Manager' },
+    for: { name: 'Marcus Reeves',  initials: 'MR', gradient: CYAN_GRAD, role: 'Molecule Lead' },
+    type: 'feedback', typeLabel: 'Feedback',
+    date: 'Dec 19, 2025', status: 'review', statusLabel: 'Under Review', priority: 'Medium',
+    description: 'v3 of the sponsor pitch deck attached. Specifically want feedback on slides 6–9 (ROI framing) and slide 14 (audience demographics). Targeting Jan 5 send-out.',
+    department: 'Marketing', budget: 'N/A',
+  },
+  {
+    id: 'COM-2026-005', title: 'Post-event debrief — date shift', category: 'communication',
+    by:  { name: 'David Kim',      initials: 'DK', gradient: GREEN_GRAD, role: 'Ops Lead' },
+    for: { name: 'All Members',    initials: 'AL', gradient: PURPLE_GRAD, role: 'Molecule Team' },
+    type: 'broadcast', typeLabel: 'Announcement',
+    date: 'Dec 18, 2025', status: 'approved', statusLabel: 'Sent', priority: 'Low',
+    description: 'Post-event debrief moved from Apr 2 to Apr 5 to accommodate the leadership offsite. Same time, same room. Calendar invites re-sent with the update.',
+    department: 'Operations', budget: 'N/A',
+  },
+  {
+    id: 'COM-2026-006', title: 'Vendor comms cadence question', category: 'communication',
+    by:  { name: 'Jenna Brooks',   initials: 'JB', gradient: ORANGE_GRAD, role: 'Partnerships' },
+    for: { name: 'Marcus Reeves',  initials: 'MR', gradient: CYAN_GRAD,   role: 'Molecule Lead' },
+    type: 'info', typeLabel: 'Info Request',
+    date: 'Dec 17, 2025', status: 'approved', statusLabel: 'Answered', priority: 'Low',
+    description: 'Should vendor check-ins move from weekly to bi-weekly after Jan 15? Current weekly cadence feels heavy given most onboarding is completed. Would like a ruling before next planning round.',
+    department: 'Partnerships', budget: 'N/A',
   },
 ];
 
@@ -151,7 +211,15 @@ const TYPE_LABELS: Record<ReqType | 'all', string> = {
   access: 'Access Request',
   leave: 'Leave Request',
   equipment: 'Equipment Request',
+  update: 'Status Update',
+  meeting: 'Meeting Request',
+  info: 'Info Request',
+  feedback: 'Feedback',
+  broadcast: 'Announcement',
 };
+
+const APPROVAL_TYPES: ReqType[] = ['resource', 'budget', 'access', 'leave', 'equipment'];
+const COMM_TYPES: ReqType[] = ['update', 'meeting', 'info', 'feedback', 'broadcast'];
 
 const ApproveIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -175,22 +243,34 @@ export default function RequestsPage() {
   const id = params?.id ?? '';
   const mol = getMolecule(id);
 
+  const [activeTab, setActiveTab] = useState<ReqCategory>('approval');
   const [statusFilter, setStatusFilter] = useState<'all' | ReqStatus>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | ReqType>('all');
   const [search, setSearch] = useState('');
   const [drawer, setDrawer] = useState<Request | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  const counts = useMemo(() => ({
-    pending: REQUESTS.filter(r => r.status === 'pending').length,
-    approved: REQUESTS.filter(r => r.status === 'approved').length,
-    rejected: REQUESTS.filter(r => r.status === 'rejected').length,
-    total: REQUESTS.length,
+  // Reset type filter when switching tabs (the relevant types differ per category).
+  const tabBase = useMemo(
+    () => REQUESTS.filter(r => r.category === activeTab),
+    [activeTab],
+  );
+
+  const tabCounts = useMemo(() => ({
+    approval:      REQUESTS.filter(r => r.category === 'approval').length,
+    communication: REQUESTS.filter(r => r.category === 'communication').length,
   }), []);
+
+  const counts = useMemo(() => ({
+    pending:  tabBase.filter(r => r.status === 'pending').length,
+    approved: tabBase.filter(r => r.status === 'approved').length,
+    rejected: tabBase.filter(r => r.status === 'rejected').length,
+    total:    tabBase.length,
+  }), [tabBase]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return REQUESTS.filter(r => {
+    return tabBase.filter(r => {
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
       if (typeFilter !== 'all' && r.type !== typeFilter) return false;
       if (!q) return true;
@@ -201,7 +281,16 @@ export default function RequestsPage() {
         r.id.toLowerCase().includes(q)
       );
     });
-  }, [statusFilter, typeFilter, search]);
+  }, [tabBase, statusFilter, typeFilter, search]);
+
+  const relevantTypes = activeTab === 'approval' ? APPROVAL_TYPES : COMM_TYPES;
+
+  function handleTabChange(tab: ReqCategory) {
+    setActiveTab(tab);
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setSearch('');
+  }
 
   return (
     <>
@@ -228,6 +317,37 @@ export default function RequestsPage() {
 
       {/* ── Content ── */}
       <div className="creator-content">
+
+        {/* Tabs */}
+        <div className="req-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'approval'}
+            className={`req-tab${activeTab === 'approval' ? ' active' : ''}`}
+            onClick={() => handleTabChange('approval')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 11 12 14 22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            Approval Requests
+            <span className="req-tab-count">{tabCounts.approval}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'communication'}
+            className={`req-tab${activeTab === 'communication' ? ' active' : ''}`}
+            onClick={() => handleTabChange('communication')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Communication Requests
+            <span className="req-tab-count">{tabCounts.communication}</span>
+          </button>
+        </div>
 
         {/* Stats row */}
         <div className="stats-row">
@@ -316,8 +436,9 @@ export default function RequestsPage() {
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value as typeof typeFilter)}
           >
-            {(Object.keys(TYPE_LABELS) as (keyof typeof TYPE_LABELS)[]).map(k => (
-              <option key={k} value={k}>{TYPE_LABELS[k]}</option>
+            <option value="all">All Types</option>
+            {relevantTypes.map(t => (
+              <option key={t} value={t}>{TYPE_LABELS[t]}</option>
             ))}
           </select>
           <select className="filter-select" defaultValue="all">
@@ -620,10 +741,7 @@ export default function RequestsPage() {
                 <textarea className="fc-textarea" placeholder="Describe your request..." />
               </div>
             </div>
-            <div style={{
-              padding: '16px 24px', borderTop: '1px solid var(--border)',
-              display: 'flex', justifyContent: 'flex-end', gap: '10px',
-            }}>
+            <div className="ov-modal-foot">
               <button type="button" className="btn-sm" onClick={() => setModalOpen(false)}>Cancel</button>
               <button type="button" className="btn-gold-sm" onClick={() => setModalOpen(false)}>Submit Request</button>
             </div>

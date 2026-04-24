@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { getMolecule } from '@/lib/molecules';
+import { getCompletedQuads, getQuadMaxStep, isQuadUnlocked, TOTAL_STEPS, type Quad } from '@/lib/progress';
 
 type ViewKey = 'overview' | 'members' | 'requests' | 'finalized';
 
@@ -78,14 +80,39 @@ export default function MoleculeSidebar() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
+  const [completed, setCompleted] = useState<Quad[]>([]);
+  const [maxSteps, setMaxSteps] = useState<Record<Quad, number>>({ a: 0, b: 0, c: 0, d: 0 });
+
+  useEffect(() => {
+    if (!id) return;
+    // Re-read completion + per-quad step on each route change so progress
+    // updates after the user advances within a quadrant or finishes one.
+    setCompleted(getCompletedQuads(id));
+    setMaxSteps({
+      a: getQuadMaxStep(id, 'a'),
+      b: getQuadMaxStep(id, 'b'),
+      c: getQuadMaxStep(id, 'c'),
+      d: getQuadMaxStep(id, 'd'),
+    });
+  }, [id, pathname]);
+
   if (!mol) return null;
 
   const base = `/molecules/${id}`;
 
+  // Per-quadrant progress: 100% when completed, otherwise scaled by highest
+  // step reached (step 1 just entered = 0%, step 5 reached but not submitted = 80%).
+  function quadPct(q: Quad): number {
+    if (completed.includes(q)) return 100;
+    const m = maxSteps[q];
+    return Math.max(0, (m - 1)) * (100 / (TOTAL_STEPS - 1));
+  }
+  const overallPct = Math.round(completed.length * 25);
+
   const views: ViewItem[] = [
     {
       key: 'overview', slug: '', label: 'Overview', sub: 'Molecule structure', cls: 'nv-ov', icon: OverviewIcon,
-      badge: { text: `${mol.progress}%`, bg: 'var(--gold-pale)', fg: 'var(--gold)' },
+      badge: { text: `${overallPct}%`, bg: 'var(--gold-pale)', fg: 'var(--gold)' },
     },
     {
       key: 'members', slug: '/members', label: 'Assign Members', sub: 'Stump & Sub-Stump roles', cls: 'nv-ov', icon: MembersIcon,
@@ -100,11 +127,14 @@ export default function MoleculeSidebar() {
     { key: 'finalized', slug: '/finalized', label: 'Finalized View', sub: 'OKRs, KPIs, Jobs & Tasks', cls: 'nv-fin', icon: FinalizedIcon },
   ];
 
-  const quadrants = [
-    { slug: '/quadrant-a', cls: 'nv-qa', label: 'Quadrant A', sub: 'Coordinate · OKR',     icon: QA_Icon, progress: mol.sidebar.quadA, color: 'var(--success)' },
-    { slug: '/quadrant-b', cls: 'nv-qb', label: 'Quadrant B', sub: 'Communication · KPI',   icon: QB_Icon, progress: mol.sidebar.quadB, color: 'var(--success)' },
-    { slug: '/quadrant-c', cls: 'nv-qc', label: 'Quadrant C', sub: 'Knowledge · Jobs',     icon: QC_Icon, progress: mol.sidebar.quadC, color: 'var(--success)' },
-    { slug: '/quadrant-d', cls: 'nv-qd', label: 'Quadrant D', sub: 'Exchange · Tasks',      icon: QD_Icon, progress: mol.sidebar.quadD, color: 'var(--warn)' },
+  const quadrants: Array<{
+    slug: string; cls: string; label: string; sub: string;
+    icon: React.ReactNode; progress: number; color: string; quad: Quad;
+  }> = [
+    { slug: '/quadrant-a', cls: 'nv-qa', label: 'Quadrant A', sub: 'Coordinate · OKR',    icon: QA_Icon, progress: quadPct('a'), color: '#E8B045', quad: 'a' },
+    { slug: '/quadrant-b', cls: 'nv-qb', label: 'Quadrant B', sub: 'Communication · KPI', icon: QB_Icon, progress: quadPct('b'), color: '#3E7BF5', quad: 'b' },
+    { slug: '/quadrant-c', cls: 'nv-qc', label: 'Quadrant C', sub: 'Knowledge · Jobs',    icon: QC_Icon, progress: quadPct('c'), color: '#E55050', quad: 'c' },
+    { slug: '/quadrant-d', cls: 'nv-qd', label: 'Quadrant D', sub: 'Exchange · Tasks',    icon: QD_Icon, progress: quadPct('d'), color: '#3BB87F', quad: 'd' },
   ];
 
   return (
@@ -123,7 +153,7 @@ export default function MoleculeSidebar() {
           <div className="mol-id-icon">{mol.initials}</div>
           <div>
             <div className="mol-id-name">{mol.name}</div>
-            <div className="mol-id-tag">{mol.code} · {mol.progress}% complete</div>
+            <div className="mol-id-tag">{mol.code} · {overallPct}% complete</div>
           </div>
         </div>
       </div>
@@ -134,6 +164,30 @@ export default function MoleculeSidebar() {
         {views.map(v => {
           const href = base + v.slug;
           const active = v.slug === '' ? pathname === base : pathname === href || pathname.startsWith(href + '/');
+          // Finalized View is locked until every quadrant is completed.
+          const locked = v.key === 'finalized' && completed.length < 4;
+
+          if (locked) {
+            return (
+              <div
+                key={v.key}
+                className={`mol-nav-item ${v.cls} mol-nav-locked`}
+                aria-disabled="true"
+                title="Complete all 4 quadrants to unlock the Finalized View"
+              >
+                <div className="nv-icon" style={{ color: 'rgba(255,255,255,.3)' }}>{v.icon}</div>
+                <div className="nv-text">
+                  <div className="nv-label">{v.label}</div>
+                  <div className="nv-sub">{v.sub}</div>
+                </div>
+                <svg className="nv-lock-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+            );
+          }
+
           return (
             <Link key={v.key} href={href} className={`mol-nav-item ${v.cls}${active ? ' active' : ''}`}>
               <div className="nv-icon">{v.icon}</div>
@@ -156,6 +210,32 @@ export default function MoleculeSidebar() {
         {quadrants.map(q => {
           const href = base + q.slug;
           const active = pathname === href;
+          const unlocked = isQuadUnlocked(q.quad, completed);
+
+          if (!unlocked) {
+            return (
+              <div
+                key={q.slug}
+                className={`mol-nav-item ${q.cls} mol-nav-locked`}
+                aria-disabled="true"
+                title={`Complete Quadrant ${String.fromCharCode(q.quad.charCodeAt(0) - 1).toUpperCase()} to unlock`}
+              >
+                <div className="nv-icon" style={{ color: 'rgba(255,255,255,.3)' }}>{q.icon}</div>
+                <div className="nv-text">
+                  <div className="nv-label">{q.label}</div>
+                  <div className="nv-sub">{q.sub}</div>
+                  <div className="nv-prog">
+                    <div className="nv-prog-fill" style={{ width: '0%', background: q.color }} />
+                  </div>
+                </div>
+                <svg className="nv-lock-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+            );
+          }
+
           return (
             <Link key={q.slug} href={href} className={`mol-nav-item ${q.cls}${active ? ' active' : ''}`}>
               <div className="nv-icon" style={{ color: 'rgba(255,255,255,.4)' }}>{q.icon}</div>

@@ -80,6 +80,21 @@ const SubStumpIcon = (
   </svg>
 );
 
+type InviteRole = 'stump' | 'sub-stump' | 'lead';
+
+interface InviteForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  role: InviteRole;
+}
+
+const EMPTY_INVITE: InviteForm = {
+  firstName: '', lastName: '', email: '', phone: '', address: '', role: 'stump',
+};
+
 export default function AssignMembersPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
@@ -90,6 +105,8 @@ export default function AssignMembersPage() {
   const [dropdown, setDropdown] = useState<{ slotId: string; top: number; left: number } | null>(null);
   const [ddSearch, setDdSearch] = useState('');
   const slotRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [invite, setInvite] = useState<InviteForm>(EMPTY_INVITE);
 
   // Close dropdown on Escape
   useEffect(() => {
@@ -98,6 +115,27 @@ export default function AssignMembersPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [dropdown]);
+
+  // Close invite modal on Escape
+  useEffect(() => {
+    if (!inviteOpen) return;
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setInviteOpen(false); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [inviteOpen]);
+
+  const inviteValid =
+    invite.firstName.trim() !== '' &&
+    invite.lastName.trim() !== '' &&
+    invite.email.trim() !== '' &&
+    invite.address.trim() !== '';
+
+  function submitInvite() {
+    if (!inviteValid) return;
+    // Mock: no backend — just close the modal and reset.
+    setInviteOpen(false);
+    setInvite(EMPTY_INVITE);
+  }
 
   // Assignments map: userId -> list of slot short labels
   const userAssignmentMap = useMemo(() => {
@@ -174,10 +212,20 @@ export default function AssignMembersPage() {
             <div className="am-title">Assign Members</div>
             <div className="am-desc">Assign users to Stump and Sub-Stump roles across all four quadrants.</div>
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--muted)', textAlign: 'right' }}>
-            <strong style={{ color: 'var(--navy)' }}>{filledCount}</strong> of <strong style={{ color: 'var(--navy)' }}>8</strong> roles assigned
-            {filledCount < 8 && <span style={{ color: 'var(--warn)' }}> · {8 - filledCount} empty slot{8 - filledCount > 1 ? 's' : ''}</span>}
-            {filledCount === 8 && <span style={{ color: 'var(--success)' }}> · All slots filled</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--muted)', textAlign: 'right' }}>
+              <strong style={{ color: 'var(--navy)' }}>{filledCount}</strong> of <strong style={{ color: 'var(--navy)' }}>8</strong> roles assigned
+              {filledCount < 8 && <span style={{ color: 'var(--warn)' }}> · {8 - filledCount} empty slot{8 - filledCount > 1 ? 's' : ''}</span>}
+              {filledCount === 8 && <span style={{ color: 'var(--success)' }}> · All slots filled</span>}
+            </div>
+            <button type="button" className="btn-gold-sm" onClick={() => setInviteOpen(true)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
+              </svg>
+              Invite User
+            </button>
           </div>
         </div>
 
@@ -333,6 +381,90 @@ export default function AssignMembersPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* ── Invite User modal ── */}
+      {inviteOpen && (
+        <div className="ov-modal-overlay" onClick={() => setInviteOpen(false)}>
+          <div className="ov-modal ov-modal--wide" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="ov-modal-header">
+              <div className="ov-modal-eyebrow">Invite User</div>
+              <button type="button" className="ov-modal-close" onClick={() => setInviteOpen(false)} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="ov-modal-body">
+              <div className="fc-row">
+                <div className="fc-group">
+                  <label className="fc-label">First Name <span className="req">*</span></label>
+                  <input
+                    className="fc-input" type="text" placeholder="Jane"
+                    value={invite.firstName}
+                    onChange={e => setInvite(p => ({ ...p, firstName: e.target.value }))}
+                  />
+                </div>
+                <div className="fc-group">
+                  <label className="fc-label">Last Name <span className="req">*</span></label>
+                  <input
+                    className="fc-input" type="text" placeholder="Doe"
+                    value={invite.lastName}
+                    onChange={e => setInvite(p => ({ ...p, lastName: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="fc-group">
+                <label className="fc-label">Email <span className="req">*</span></label>
+                <input
+                  className="fc-input" type="email" placeholder="jane@company.com"
+                  value={invite.email}
+                  onChange={e => setInvite(p => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+
+              <div className="fc-group">
+                <label className="fc-label">Phone <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional)</span></label>
+                <input
+                  className="fc-input" type="tel" placeholder="(555) 123-4567"
+                  value={invite.phone}
+                  onChange={e => setInvite(p => ({ ...p, phone: e.target.value }))}
+                />
+              </div>
+
+              <div className="fc-group">
+                <label className="fc-label">Address <span className="req">*</span></label>
+                <input
+                  className="fc-input" type="text" placeholder="123 Main St, City, State"
+                  value={invite.address}
+                  onChange={e => setInvite(p => ({ ...p, address: e.target.value }))}
+                />
+              </div>
+
+              <div className="fc-group">
+                <label className="fc-label">Role <span className="req">*</span></label>
+                <select
+                  className="fc-select"
+                  value={invite.role}
+                  onChange={e => setInvite(p => ({ ...p, role: e.target.value as InviteRole }))}
+                >
+                  <option value="stump">Stump</option>
+                  <option value="sub-stump">Sub-Stump</option>
+                  <option value="lead">Lead</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="ov-modal-foot">
+              <button type="button" className="fc-btn-secondary" onClick={() => setInviteOpen(false)}>Cancel</button>
+              <button type="button" className="fc-btn-primary" onClick={submitInvite} disabled={!inviteValid}>
+                Send Invite
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

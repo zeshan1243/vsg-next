@@ -113,54 +113,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick actions */}
-        <div className="dash-card" style={{ animationDelay: '.14s', maxWidth: '480px' }}>
-          <div className="dash-card-header">
-            <div className="dash-card-title">Quick Actions</div>
-          </div>
-          <div className="quick-grid">
-            <button className="quick-btn" type="button" onClick={() => router.push('/molecules/new')}>
-              <div className="q-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
-                </svg>
-              </div>
-              <div className="q-label">Create Molecule</div>
-              <div className="q-desc">Start a new project</div>
-            </button>
-            <button className="quick-btn" type="button" onClick={() => router.push('/team')}>
-              <div className="q-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
-                </svg>
-              </div>
-              <div className="q-label">Invite Member</div>
-              <div className="q-desc">Add team & assign roles</div>
-            </button>
-            <button className="quick-btn" type="button" onClick={() => router.push('/molecules')}>
-              <div className="q-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="2" /><circle cx="12" cy="4" r="2" /><circle cx="20" cy="12" r="2" />
-                  <circle cx="12" cy="20" r="2" /><circle cx="4" cy="12" r="2" />
-                  <line x1="12" y1="6" x2="12" y2="10" /><line x1="14" y1="12" x2="18" y2="12" />
-                </svg>
-              </div>
-              <div className="q-label">View Molecules</div>
-              <div className="q-desc">Browse all projects</div>
-            </button>
-            <button className="quick-btn" type="button">
-              <div className="q-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" />
-                </svg>
-              </div>
-              <div className="q-label">View Requests</div>
-              <div className="q-desc">Browse all requests</div>
-            </button>
-          </div>
-        </div>
-
       </div>
     </>
   );
