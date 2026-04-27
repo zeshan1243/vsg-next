@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getMolecule } from '@/lib/molecules';
 import {
@@ -56,6 +56,12 @@ const XIcon = (
 const PlusIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+const EyeIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
   </svg>
 );
 
@@ -173,9 +179,11 @@ function makeInitialTabs(quad: Quad): Record<TabId, TabContent> {
     quad === 'd' ? 'jobs' :
     null;
 
+  const sharedObjective = 'Execute Premier Wedding Expo';
+
   const base = {
     vendors: {
-      objective: 'Execute Premier Wedding Expo',
+      objective: sharedObjective,
       okrs: [
         emptyOkr('v-o1', '01', 'Secure 50 exhibitor vendors across 8 categories', 'peach', {
           kpis: [
@@ -197,12 +205,12 @@ function makeInitialTabs(quad: Quad): Record<TabId, TabContent> {
       files: [{ id: 'f-1', name: 'Venue_AV_Confirmation.pdf', size: '340 KB' }],
     },
     partners: {
-      objective: 'Strategic Partner Engagement',
+      objective: sharedObjective,
       okrs: [emptyOkr('p-o1', '01', 'Sign 5 corporate sponsorship deals at Gold tier or above', 'peach')],
       files: [],
     },
     location: {
-      objective: 'Venue Logistics & Setup',
+      objective: sharedObjective,
       okrs: [
         emptyOkr('l-o1', '01', 'Confirm Convention Hall booking by Mar 15',           'peach'),
         emptyOkr('l-o2', '02', 'Lock in catering floor plan with 5 service stations', 'peach'),
@@ -210,7 +218,7 @@ function makeInitialTabs(quad: Quad): Record<TabId, TabContent> {
       files: [],
     },
     attendance: {
-      objective: 'Attendee Acquisition',
+      objective: sharedObjective,
       okrs: [emptyOkr('a-o1', '01', 'Drive 5,000 confirmed attendee registrations', 'peach')],
       files: [],
     },
@@ -245,29 +253,35 @@ function nextNum(items: { number: string }[], prefix = ''): string {
 export default function QuadrantFlow({ quad }: { quad: Quad }) {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
 
-  const stepParam = Number.parseInt(searchParams.get('step') ?? '1', 10);
-  const step = Math.min(TOTAL_STEPS, Math.max(1, Number.isFinite(stepParam) ? stepParam : 1));
-  const stack = stackForStep(quad, step);
-  const stackLabel = STACK_LABEL[stack];
-
   const [activeTab, setActiveTab] = useState<TabId>('vendors');
+  const [tabSteps, setTabSteps] = useState<Record<TabId, number>>({
+    vendors: 1, partners: 1, location: 1, attendance: 1,
+  });
   const [tabs, setTabs] = useState<Record<TabId, TabContent>>(() => makeInitialTabs(quad));
   const [draft, setDraft] = useState('');
   const [stumpOpen, setStumpOpen] = useState(false);
   const [assignedStump, setAssignedStump] = useState<StumpUser | null>(null);
   const [stumpSearch, setStumpSearch] = useState('');
+  const [molInfoOpen, setMolInfoOpen] = useState(false);
+
+  const step = tabSteps[activeTab];
+  const stack = stackForStep(quad, step);
+  const stackLabel = STACK_LABEL[stack];
 
   useEffect(() => {
-    if (!stumpOpen) return;
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setStumpOpen(false); }
+    if (!stumpOpen && !molInfoOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setStumpOpen(false);
+        setMolInfoOpen(false);
+      }
+    }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [stumpOpen]);
+  }, [stumpOpen, molInfoOpen]);
 
   useEffect(() => {
     if (!id) return;
@@ -279,7 +293,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
   function advance() {
     if (step < TOTAL_STEPS) {
       bumpQuadMaxStep(id, quad, step + 1);
-      router.push(`${pathname}?step=${step + 1}`);
+      setTabSteps(prev => ({ ...prev, [activeTab]: step + 1 }));
     } else {
       markQuadCompleted(id, quad);
       const next = NEXT_QUAD[quad];
@@ -487,7 +501,11 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
           <h1 className="qa-title">{headingLabel}</h1>
           <div className="qa-step-indicator">
             {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(n => (
-              <span key={n} className={`qa-step-dot${n === step ? ' active' : ''}${n < step ? ' done' : ''}`} />
+              <span
+                key={n}
+                className={`qa-step-dot${n === step ? ' active' : ''}${n < step ? ' done' : ''}`}
+                data-step={n}
+              />
             ))}
             <span className="qa-step-text">Step {step} of {TOTAL_STEPS}</span>
           </div>
@@ -649,7 +667,18 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
           {/* Right side */}
           <div className="qa-side">
             <div className="qa-side-card">
-              <div className="qa-side-card-title">Molecule Info</div>
+              <div className="qa-side-card-header">
+                <div className="qa-side-card-title">Molecule Info</div>
+                <button
+                  type="button"
+                  className="qa-side-card-eye"
+                  onClick={() => setMolInfoOpen(true)}
+                  aria-label="View full molecule details"
+                  title="View details"
+                >
+                  {EyeIcon}
+                </button>
+              </div>
               <div className="qa-info-row"><span className="qa-info-key">Molecule</span><span className="qa-info-val">{mol.name}</span></div>
               <div className="qa-info-row"><span className="qa-info-key">Quad</span><span className="qa-info-val">{QUAD_FULL_TITLE[quad]}</span></div>
               <div className="qa-info-row"><span className="qa-info-key">Stack</span><span className="qa-info-val">{step === TOTAL_STEPS ? 'Outer' : 'Inner'}</span></div>
@@ -661,18 +690,30 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                 {step === TOTAL_STEPS ? QUAD_OUTER_STACK_LABEL[quad] : QUAD_INNER_STACK_LABEL[quad]}
               </div>
               <div className="inner-stack-grid">
-                {(step === TOTAL_STEPS ? OUTER_STACK_CELLS : STACK_CELLS).map(cell => (
-                  <div key={cell.key} className={`stack-cell ${cell.key}`}>
-                    <div className="stack-cell-label">{cell.label}</div>
-                    {step !== TOTAL_STEPS && (
-                      <div className="stack-pills">
-                        {STACK_PILLS.map(p => (
-                          <div key={p} className="stack-pill">{p}</div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {(step === TOTAL_STEPS ? OUTER_STACK_CELLS : STACK_CELLS).map(cell => {
+                  // Inner stack order: okrs (step 1) → kpis (step 2) → jobs (step 3) → tasks (step 4)
+                  const stepOrder: Record<string, number> = { okrs: 1, kpis: 2, jobs: 3, tasks: 4 };
+                  const cellStep = stepOrder[cell.key] ?? 5;
+                  const isVisible = step >= cellStep;
+                  const isActive = step === cellStep;
+
+                  // For outer stack (step 5), highlight based on quad
+                  const outerActiveKey = QUAD_FINAL[quad];
+                  const isOuterActive = step === TOTAL_STEPS && cell.key === outerActiveKey;
+
+                  return (
+                    <div key={cell.key} className={`stack-cell ${cell.key}${isVisible || step === TOTAL_STEPS ? ' visible' : ''}${isActive ? ' active' : ''}${isOuterActive ? ' active' : ''}`}>
+                      <div className="stack-cell-label">{cell.label}</div>
+                      {step !== TOTAL_STEPS && (
+                        <div className="stack-pills">
+                          {STACK_PILLS.map(p => (
+                            <div key={p} className="stack-pill">{p}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -791,6 +832,127 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
           </div>
         );
       })()}
+
+      {/* ── Molecule Info modal ── */}
+      {molInfoOpen && (
+        <div className="ov-modal-overlay" onClick={() => setMolInfoOpen(false)}>
+          <div className="ov-modal ov-modal--wide" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: '820px' }}>
+            <div className="ov-modal-header">
+              <div className="ov-modal-eyebrow">Molecule Details</div>
+              <button type="button" className="ov-modal-close" onClick={() => setMolInfoOpen(false)} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ov-modal-body" style={{ padding: '20px 24px' }}>
+              {/* Header with name and progress */}
+              <div className="mol-detail-header">
+                <div className="mol-detail-name">{mol.name}</div>
+                <div className="mol-detail-progress">
+                  <div className="mol-detail-progress-bar">
+                    <div className="mol-detail-progress-fill" style={{ width: `${mol.progress}%` }} />
+                  </div>
+                  <span className="mol-detail-progress-text">{mol.progress}%</span>
+                </div>
+              </div>
+
+              <div className="mol-detail-grid">
+                {/* Left column */}
+                <div className="mol-detail-main">
+                  <div className="mol-detail-section">
+                    <div className="mol-detail-label">Vision Statement</div>
+                    <div className="mol-detail-value">Drive organizational excellence through structured goal alignment and cross-functional collaboration across all quadrants.</div>
+                  </div>
+                  <div className="mol-detail-section">
+                    <div className="mol-detail-label">High-Level Objective</div>
+                    <div className="mol-detail-value">{tab.objective}</div>
+                  </div>
+                  <div className="mol-detail-meta">
+                    <div className="mol-detail-chip">
+                      <span className="mol-detail-chip-label">Quadrant</span>
+                      <span className="mol-detail-chip-value">{QUAD_FULL_TITLE[quad]}</span>
+                    </div>
+                    <div className="mol-detail-chip">
+                      <span className="mol-detail-chip-label">Stack</span>
+                      <span className="mol-detail-chip-value">{step === TOTAL_STEPS ? 'Outer' : 'Inner'}</span>
+                    </div>
+                    <div className="mol-detail-chip">
+                      <span className="mol-detail-chip-label">Step</span>
+                      <span className="mol-detail-chip-value">{step} of {TOTAL_STEPS}</span>
+                    </div>
+                  </div>
+
+                  {/* Molecule Structure - Roles */}
+                  <div className="mol-detail-roles">
+                    <div className="mol-detail-label">Team Structure</div>
+                    <div className="mol-detail-roles-grid">
+                      <div className="mol-role-item">
+                        <div className="mol-role-icon gold">C</div>
+                        <div className="mol-role-info">
+                          <div className="mol-role-name">Creator</div>
+                          <div className="mol-role-desc">Create and manage molecule</div>
+                        </div>
+                      </div>
+                      <div className="mol-role-item">
+                        <div className="mol-role-icon gold">L</div>
+                        <div className="mol-role-info">
+                          <div className="mol-role-name">Lead</div>
+                          <div className="mol-role-desc">Manage assigned molecule</div>
+                        </div>
+                      </div>
+                      <div className="mol-role-item">
+                        <div className="mol-role-icon cyan">S</div>
+                        <div className="mol-role-info">
+                          <div className="mol-role-name">Stump</div>
+                          <div className="mol-role-desc">Manage assigned quads</div>
+                        </div>
+                      </div>
+                      <div className="mol-role-item">
+                        <div className="mol-role-icon purple">SS</div>
+                        <div className="mol-role-info">
+                          <div className="mol-role-name">Sub-Stump</div>
+                          <div className="mol-role-desc">Manage assigned tasks</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right column - Stack diagrams */}
+                <div className="mol-detail-aside">
+                  <div className="mol-detail-card">
+                    <div className="mol-detail-card-title">Outer Stack</div>
+                    <div className="ms-quad-grid">
+                      <div className={`ms-quad-cell red${quad === 'c' ? ' active' : ''}`}><div className="ms-quad-label">Q·C</div><div className="ms-quad-name">Knowledge</div></div>
+                      <div className={`ms-quad-cell green${quad === 'd' ? ' active' : ''}`}><div className="ms-quad-label">Q·D</div><div className="ms-quad-name">Exchange</div></div>
+                      <div className={`ms-quad-cell gold${quad === 'a' ? ' active' : ''}`}><div className="ms-quad-label">Q·A</div><div className="ms-quad-name">Coordination</div></div>
+                      <div className={`ms-quad-cell blue${quad === 'b' ? ' active' : ''}`}><div className="ms-quad-label">Q·B</div><div className="ms-quad-name">Communication</div></div>
+                    </div>
+                  </div>
+                  <div className="mol-detail-card">
+                    <div className="mol-detail-card-title">Inner Stack</div>
+                    <div className="inner-stack-grid">
+                      {STACK_CELLS.map(cell => {
+                        const stepOrder: Record<string, number> = { okrs: 1, kpis: 2, jobs: 3, tasks: 4 };
+                        const isVisible = step >= stepOrder[cell.key];
+                        return (
+                          <div key={cell.key} className={`stack-cell ${cell.key}${isVisible ? ' visible' : ''}`}>
+                            <div className="stack-cell-label">{cell.label}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="ov-modal-foot">
+              <button type="button" className="fc-btn-secondary" onClick={() => setMolInfoOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -1008,17 +1170,25 @@ function Step4Tasks({
               Tasks
             </div>
             {job.tasks.map(task => (
-              <div key={task.id} className="qd-task-row">
-                <input
-                  type="checkbox"
-                  checked={task.done}
-                  onChange={() => onToggle(okr.id, kpi.id, job.id, task.id)}
-                  style={{ width: '16px', height: '16px', accentColor: 'var(--gold)', cursor: 'pointer' }}
-                />
+              <div key={task.id} className={`qd-task-row${task.done ? ' completed' : ''}`}>
                 <div className="qd-task-num">{job.number}.{job.tasks.indexOf(task) + 1}</div>
-                <div className="qd-task-text" style={{ textDecoration: task.done ? 'line-through' : 'none', opacity: task.done ? 0.55 : 1 }}>
+                <div className="qd-task-text">
                   {task.text}
                 </div>
+                <button
+                  type="button"
+                  className={`qd-task-toggle${task.done ? ' done' : ''}`}
+                  onClick={() => onToggle(okr.id, kpi.id, job.id, task.id)}
+                >
+                  {task.done ? (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      Completed
+                    </>
+                  ) : 'Mark Complete'}
+                </button>
                 <button type="button" className="qa-okr-x" onClick={() => onRemove(okr.id, kpi.id, job.id, task.id)} aria-label="Remove task">{XIcon}</button>
               </div>
             ))}
@@ -1361,17 +1531,25 @@ function Step5FinalizeTasks({
             </div>
 
             {fj.finalTasks.map(ft => (
-              <div key={ft.id} className="qd-task-row">
-                <input
-                  type="checkbox"
-                  checked={ft.done}
-                  onChange={() => onToggle(fo.id, fk.id, fj.id, ft.id)}
-                  style={{ width: '16px', height: '16px', accentColor: 'var(--gold)', cursor: 'pointer' }}
-                />
+              <div key={ft.id} className={`qd-task-row${ft.done ? ' completed' : ''}`}>
                 <div className="qd-task-num">{fj.number}.{fj.finalTasks.indexOf(ft) + 1}</div>
-                <div className="qd-task-text" style={{ textDecoration: ft.done ? 'line-through' : 'none', opacity: ft.done ? 0.55 : 1 }}>
+                <div className="qd-task-text">
                   {ft.text}
                 </div>
+                <button
+                  type="button"
+                  className={`qd-task-toggle${ft.done ? ' done' : ''}`}
+                  onClick={() => onToggle(fo.id, fk.id, fj.id, ft.id)}
+                >
+                  {ft.done ? (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      Completed
+                    </>
+                  ) : 'Mark Complete'}
+                </button>
                 <button type="button" className="qa-okr-x" onClick={() => onRemove(fo.id, fk.id, fj.id, ft.id)} aria-label="Remove task">{XIcon}</button>
               </div>
             ))}

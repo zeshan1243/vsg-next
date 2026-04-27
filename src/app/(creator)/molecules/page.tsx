@@ -44,12 +44,6 @@ const WorkfieldsIcon = (
     <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" />
   </svg>
 );
-const LabelsIcon = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20.59 13.41L13 21a2 2 0 0 1-2.83 0L3 13.83V4h9.83L20.59 11.59a2 2 0 0 1 0 2.82z" />
-    <line x1="7" y1="7" x2="7.01" y2="7" />
-  </svg>
-);
 const LeadIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
@@ -62,7 +56,6 @@ const AVAILABLE_LEADS = [
 ];
 
 type WorkfieldKey = 'vendors' | 'partners' | 'location' | 'attendance';
-type LabelKey     = 'okrs' | 'kpis' | 'jobs' | 'tasks';
 
 const WORKFIELD_FIELDS: { key: WorkfieldKey; default: string }[] = [
   { key: 'vendors',    default: 'Vendors'    },
@@ -70,26 +63,15 @@ const WORKFIELD_FIELDS: { key: WorkfieldKey; default: string }[] = [
   { key: 'location',   default: 'Location'   },
   { key: 'attendance', default: 'Attendance' },
 ];
-const LABEL_FIELDS: { key: LabelKey; default: string }[] = [
-  { key: 'okrs',  default: 'OKRs'  },
-  { key: 'kpis',  default: 'KPIs'  },
-  { key: 'jobs',  default: 'Jobs'  },
-  { key: 'tasks', default: 'Tasks' },
-];
 
 type WorkfieldMap = Record<WorkfieldKey, string>;
-type LabelMap     = Record<LabelKey, string>;
 
 const DEFAULT_WORKFIELDS: WorkfieldMap = {
   vendors: 'Vendors', partners: 'Partners', location: 'Location', attendance: 'Attendance',
 };
-const DEFAULT_LABELS: LabelMap = {
-  okrs: 'OKRs', kpis: 'KPIs', jobs: 'Jobs', tasks: 'Tasks',
-};
 
 interface MoleculeExtras {
   workfields: WorkfieldMap;
-  labels: LabelMap;
 }
 
 export default function MoleculesPage() {
@@ -98,17 +80,15 @@ export default function MoleculesPage() {
   const [filter, setFilter] = useState<FilterKey>('all');
   const [molecules, setMolecules] = useState<Molecule[]>(MOLECULES);
 
-  // Per-molecule workfields + labels — 4 fixed fields each, user can rename but not add/remove.
+  // Per-molecule workfields — 4 fixed fields, user can rename but not add/remove.
   const [extras, setExtras] = useState<Record<string, MoleculeExtras>>(() =>
     Object.fromEntries(MOLECULES.map(m => [m.id, {
       workfields: { ...DEFAULT_WORKFIELDS },
-      labels:     { ...DEFAULT_LABELS },
     }])),
   );
 
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [workfieldsTarget, setWorkfieldsTarget] = useState<Molecule | null>(null);
-  const [labelsTarget, setLabelsTarget] = useState<Molecule | null>(null);
   const [leadTarget, setLeadTarget] = useState<Molecule | null>(null);
   const [leadDraft, setLeadDraft] = useState('');
 
@@ -121,7 +101,7 @@ export default function MoleculesPage() {
     });
   }, [molecules, query, filter]);
 
-  const anyModalOpen = !!(workfieldsTarget || labelsTarget || leadTarget);
+  const anyModalOpen = !!(workfieldsTarget || leadTarget);
 
   // Close modals / dropdown on Escape
   useEffect(() => {
@@ -129,7 +109,6 @@ export default function MoleculesPage() {
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
       setWorkfieldsTarget(null);
-      setLabelsTarget(null);
       setLeadTarget(null);
       setMenuOpenId(null);
     }
@@ -149,10 +128,6 @@ export default function MoleculesPage() {
     setWorkfieldsTarget(m);
     setMenuOpenId(null);
   }
-  function openLabels(m: Molecule) {
-    setLabelsTarget(m);
-    setMenuOpenId(null);
-  }
   function openLead(m: Molecule) {
     setLeadTarget(m);
     setLeadDraft(m.leadName);
@@ -163,12 +138,6 @@ export default function MoleculesPage() {
     setExtras(prev => ({
       ...prev,
       [molId]: { ...prev[molId], workfields: { ...prev[molId].workfields, [key]: value } },
-    }));
-  }
-  function updateLabel(molId: string, key: LabelKey, value: string) {
-    setExtras(prev => ({
-      ...prev,
-      [molId]: { ...prev[molId], labels: { ...prev[molId].labels, [key]: value } },
     }));
   }
   function saveLead() {
@@ -265,10 +234,6 @@ export default function MoleculesPage() {
                       {WorkfieldsIcon}
                       Edit Workfields
                     </button>
-                    <button type="button" role="menuitem" className="mol-card-menu-item" onClick={() => openLabels(m)}>
-                      {LabelsIcon}
-                      Edit Labels
-                    </button>
                     <button type="button" role="menuitem" className="mol-card-menu-item" onClick={() => openLead(m)}>
                       {LeadIcon}
                       Change Lead
@@ -332,7 +297,7 @@ export default function MoleculesPage() {
         const molId = workfieldsTarget.id;
         return (
           <div className="ov-modal-overlay" onClick={() => setWorkfieldsTarget(null)}>
-            <div className="ov-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="ov-modal ov-modal--compact" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
               <div className="ov-modal-header">
                 <div className="ov-modal-eyebrow">Edit Workfields · {workfieldsTarget.name}</div>
                 <button type="button" className="ov-modal-close" onClick={() => setWorkfieldsTarget(null)} aria-label="Close">
@@ -342,44 +307,22 @@ export default function MoleculesPage() {
                 </button>
               </div>
               <div className="ov-modal-body">
-                <div className="fc-hint" style={{ marginTop: 0, marginBottom: '14px' }}>
-                  Rename any of the four workfields. These are the operational domains for this molecule.
+                <div className="fc-hint" style={{ marginTop: 0, marginBottom: '16px' }}>
+                  Rename any of the four workfields. Click a name to edit it directly.
                 </div>
-                <div className="fc-row" style={{ marginBottom: '14px' }}>
-                  <div className="fc-group" style={{ marginBottom: 0 }}>
-                    <label className="fc-label">{WORKFIELD_FIELDS[0].default}</label>
-                    <input
-                      className="fc-input" type="text"
-                      value={wf[WORKFIELD_FIELDS[0].key]}
-                      onChange={e => updateWorkfield(molId, WORKFIELD_FIELDS[0].key, e.target.value)}
-                    />
-                  </div>
-                  <div className="fc-group" style={{ marginBottom: 0 }}>
-                    <label className="fc-label">{WORKFIELD_FIELDS[1].default}</label>
-                    <input
-                      className="fc-input" type="text"
-                      value={wf[WORKFIELD_FIELDS[1].key]}
-                      onChange={e => updateWorkfield(molId, WORKFIELD_FIELDS[1].key, e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="fc-row">
-                  <div className="fc-group" style={{ marginBottom: 0 }}>
-                    <label className="fc-label">{WORKFIELD_FIELDS[2].default}</label>
-                    <input
-                      className="fc-input" type="text"
-                      value={wf[WORKFIELD_FIELDS[2].key]}
-                      onChange={e => updateWorkfield(molId, WORKFIELD_FIELDS[2].key, e.target.value)}
-                    />
-                  </div>
-                  <div className="fc-group" style={{ marginBottom: 0 }}>
-                    <label className="fc-label">{WORKFIELD_FIELDS[3].default}</label>
-                    <input
-                      className="fc-input" type="text"
-                      value={wf[WORKFIELD_FIELDS[3].key]}
-                      onChange={e => updateWorkfield(molId, WORKFIELD_FIELDS[3].key, e.target.value)}
-                    />
-                  </div>
+                <div className="wf-edit-grid">
+                  {WORKFIELD_FIELDS.map((f, idx) => (
+                    <div key={f.key} className="wf-edit-row">
+                      <span className="wf-edit-num">{idx + 1}</span>
+                      <input
+                        className="wf-edit-input"
+                        type="text"
+                        value={wf[f.key]}
+                        placeholder={f.default}
+                        onChange={e => updateWorkfield(molId, f.key, e.target.value)}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="ov-modal-foot">
@@ -390,74 +333,10 @@ export default function MoleculesPage() {
         );
       })()}
 
-      {/* ── Edit Labels modal ── */}
-      {labelsTarget && (() => {
-        const lb = extras[labelsTarget.id]?.labels ?? DEFAULT_LABELS;
-        const molId = labelsTarget.id;
-        return (
-          <div className="ov-modal-overlay" onClick={() => setLabelsTarget(null)}>
-            <div className="ov-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
-              <div className="ov-modal-header">
-                <div className="ov-modal-eyebrow">Edit Labels · {labelsTarget.name}</div>
-                <button type="button" className="ov-modal-close" onClick={() => setLabelsTarget(null)} aria-label="Close">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <div className="ov-modal-body">
-                <div className="fc-hint" style={{ marginTop: 0, marginBottom: '14px' }}>
-                  Rename any of the four stack labels. These apply across all quadrants for this molecule.
-                </div>
-                <div className="fc-row" style={{ marginBottom: '14px' }}>
-                  <div className="fc-group" style={{ marginBottom: 0 }}>
-                    <label className="fc-label">{LABEL_FIELDS[0].default}</label>
-                    <input
-                      className="fc-input" type="text"
-                      value={lb[LABEL_FIELDS[0].key]}
-                      onChange={e => updateLabel(molId, LABEL_FIELDS[0].key, e.target.value)}
-                    />
-                  </div>
-                  <div className="fc-group" style={{ marginBottom: 0 }}>
-                    <label className="fc-label">{LABEL_FIELDS[1].default}</label>
-                    <input
-                      className="fc-input" type="text"
-                      value={lb[LABEL_FIELDS[1].key]}
-                      onChange={e => updateLabel(molId, LABEL_FIELDS[1].key, e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="fc-row">
-                  <div className="fc-group" style={{ marginBottom: 0 }}>
-                    <label className="fc-label">{LABEL_FIELDS[2].default}</label>
-                    <input
-                      className="fc-input" type="text"
-                      value={lb[LABEL_FIELDS[2].key]}
-                      onChange={e => updateLabel(molId, LABEL_FIELDS[2].key, e.target.value)}
-                    />
-                  </div>
-                  <div className="fc-group" style={{ marginBottom: 0 }}>
-                    <label className="fc-label">{LABEL_FIELDS[3].default}</label>
-                    <input
-                      className="fc-input" type="text"
-                      value={lb[LABEL_FIELDS[3].key]}
-                      onChange={e => updateLabel(molId, LABEL_FIELDS[3].key, e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="ov-modal-foot">
-                <button type="button" className="fc-btn-secondary" onClick={() => setLabelsTarget(null)}>Done</button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* ── Change Lead modal ── */}
       {leadTarget && (
         <div className="ov-modal-overlay" onClick={() => setLeadTarget(null)}>
-          <div className="ov-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: '480px' }}>
+          <div className="ov-modal ov-modal--compact" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: '480px' }}>
             <div className="ov-modal-header">
               <div className="ov-modal-eyebrow">Change Lead · {leadTarget.name}</div>
               <button type="button" className="ov-modal-close" onClick={() => setLeadTarget(null)} aria-label="Close">

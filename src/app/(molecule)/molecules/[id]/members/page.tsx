@@ -195,14 +195,6 @@ export default function AssignMembersPage() {
           <span className="sep">›</span>
           <span className="cur">Assign Members</span>
         </div>
-        <div className="topbar-right">
-          <span className="creator-tag">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            Creator
-          </span>
-        </div>
       </div>
 
       <div className="creator-content">
