@@ -1,5 +1,14 @@
 export type PhaseCls = 'qA' | 'qB' | 'qC' | 'qD' | 'done';
 export type Status = 'progress' | 'completed';
+export type MoleculeState = 'draft' | 'active' | 'paused' | 'completed' | 'archived';
+
+export const MOLECULE_STATE_CONFIG: Record<MoleculeState, { label: string; color: string; bgColor: string }> = {
+  draft: { label: 'Draft', color: '#64748B', bgColor: 'rgba(100, 116, 139, 0.12)' },
+  active: { label: 'Active', color: '#22C55E', bgColor: 'rgba(34, 197, 94, 0.12)' },
+  paused: { label: 'Paused', color: '#FFAB00', bgColor: 'rgba(255, 171, 0, 0.12)' },
+  completed: { label: 'Completed', color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.12)' },
+  archived: { label: 'Archived', color: '#94A3B8', bgColor: 'rgba(148, 163, 184, 0.12)' },
+};
 
 export interface MoleculeSidebarStats {
   membersAssigned: number;
@@ -28,6 +37,7 @@ export interface Molecule {
   leadName: string;
   leadHint: string;
   status: Status;
+  state: MoleculeState;
   sidebar: MoleculeSidebarStats;
 }
 
@@ -49,6 +59,7 @@ export const MOLECULES: Molecule[] = [
     leadName: 'M. Reeves',
     leadHint: 'Lead: M. Reeves',
     status: 'progress',
+    state: 'active',
     sidebar: { membersAssigned: 6, membersTotal: 8, pendingRequests: 3, quadA: 100, quadB: 100, quadC: 100, quadD: 78 },
   },
   {
@@ -68,6 +79,7 @@ export const MOLECULES: Molecule[] = [
     leadName: 'A. Patel',
     leadHint: 'Lead: A. Patel',
     status: 'progress',
+    state: 'active',
     sidebar: { membersAssigned: 4, membersTotal: 8, pendingRequests: 2, quadA: 100, quadB: 100, quadC: 55, quadD: 0 },
   },
   {
@@ -87,6 +99,7 @@ export const MOLECULES: Molecule[] = [
     leadName: 'S. Kaplan',
     leadHint: 'Lead: You (Creator)',
     status: 'progress',
+    state: 'paused',
     sidebar: { membersAssigned: 3, membersTotal: 6, pendingRequests: 1, quadA: 100, quadB: 30, quadC: 0, quadD: 0 },
   },
   {
@@ -106,6 +119,7 @@ export const MOLECULES: Molecule[] = [
     leadName: 'Completed',
     leadHint: 'Completed',
     status: 'completed',
+    state: 'completed',
     sidebar: { membersAssigned: 3, membersTotal: 3, pendingRequests: 0, quadA: 100, quadB: 100, quadC: 100, quadD: 100 },
   },
   {
@@ -125,10 +139,80 @@ export const MOLECULES: Molecule[] = [
     leadName: 'Completed',
     leadHint: 'Completed',
     status: 'completed',
+    state: 'archived',
     sidebar: { membersAssigned: 6, membersTotal: 6, pendingRequests: 0, quadA: 100, quadB: 100, quadC: 100, quadD: 100 },
+  },
+  {
+    id: 'brand-refresh-2026',
+    code: 'MOL-006',
+    name: 'Brand Refresh 2026',
+    initials: 'BR',
+    description: 'Complete visual identity overhaul including logo redesign, color palette, and brand guidelines.',
+    phaseLabel: 'Q-A Coordinate',
+    phaseCls: 'qA',
+    progress: 0,
+    progressColor: 'var(--muted)',
+    dotColor: '#64748B',
+    members: 0,
+    date: 'Apr 20',
+    updated: 'Just now',
+    leadName: 'Unassigned',
+    leadHint: 'Draft',
+    status: 'progress',
+    state: 'draft',
+    sidebar: { membersAssigned: 0, membersTotal: 0, pendingRequests: 0, quadA: 0, quadB: 0, quadC: 0, quadD: 0 },
+  },
+  {
+    id: 'partner-summit-2025',
+    code: 'MOL-007',
+    name: 'Partner Summit 2025',
+    initials: 'PS',
+    description: 'Annual partner conference bringing together key stakeholders for strategic alignment.',
+    phaseLabel: 'Q-A Coordinate',
+    phaseCls: 'qA',
+    progress: 15,
+    progressColor: 'var(--muted)',
+    dotColor: '#64748B',
+    members: 2,
+    date: 'Apr 15',
+    updated: '3d ago',
+    leadName: 'J. Brooks',
+    leadHint: 'Draft',
+    status: 'progress',
+    state: 'draft',
+    sidebar: { membersAssigned: 2, membersTotal: 4, pendingRequests: 0, quadA: 15, quadB: 0, quadC: 0, quadD: 0 },
   },
 ];
 
 export function getMolecule(id: string): Molecule | undefined {
   return MOLECULES.find(m => m.id === id);
+}
+
+export function getMoleculesByState(state: MoleculeState): Molecule[] {
+  return MOLECULES.filter(m => m.state === state);
+}
+
+export function getMoleculeStateCounts(): Record<MoleculeState, number> {
+  const counts: Record<MoleculeState, number> = {
+    draft: 0,
+    active: 0,
+    paused: 0,
+    completed: 0,
+    archived: 0,
+  };
+  for (const mol of MOLECULES) {
+    counts[mol.state]++;
+  }
+  return counts;
+}
+
+export function getQuadrantLabel(phaseCls: PhaseCls): string {
+  switch (phaseCls) {
+    case 'qA': return 'Q-A';
+    case 'qB': return 'Q-B';
+    case 'qC': return 'Q-C';
+    case 'qD': return 'Q-D';
+    case 'done': return 'Done';
+    default: return '';
+  }
 }

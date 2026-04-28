@@ -4362,4 +4362,439 @@ html, body {
   margin-top: 1px;
 }
 
+/* ═══════════════════════════════════════════════════
+   MOLECULE METRICS CARD (Dashboard)
+   ═══════════════════════════════════════════════════ */
+.mol-metrics-card {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-lt) 100%);
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  transition: all .3s cubic-bezier(.22,1,.36,1);
+  opacity: 0;
+  animation: fadeUp .4s ease forwards;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(13,27,42,.15);
+}
+.mol-metrics-card::before {
+  content: ''; position: absolute;
+  width: 320px; height: 320px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,151,58,.18) 0%, transparent 70%);
+  top: -120px; right: -80px; pointer-events: none;
+  transition: transform .4s ease;
+}
+.mol-metrics-card::after {
+  content: ''; position: absolute;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(42,184,216,.1) 0%, transparent 70%);
+  bottom: -60px; left: 15%; pointer-events: none;
+}
+.mol-metrics-card--expanded {
+  padding: 28px 32px 24px;
+}
+
+/* Top section: greeting + count circle */
+.mol-metrics-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Left: Greeting text */
+.mol-metrics-greeting {
+  flex: 1;
+}
+.mol-metrics-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.mol-metrics-title {
+  font-family: var(--font-sans);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--white);
+  letter-spacing: -.4px;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+.mol-metrics-sub {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255,255,255,.6);
+}
+
+/* Right: Count circle */
+.mol-metrics-circle {
+  text-align: center;
+  padding: 20px 28px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all .25s ease;
+  flex-shrink: 0;
+}
+.mol-metrics-circle:hover {
+  background: rgba(255,255,255,.1);
+  border-color: rgba(255,255,255,.15);
+  transform: translateY(-2px);
+}
+.mol-metrics-count {
+  font-family: var(--font-sans);
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--white);
+  line-height: 1;
+  letter-spacing: -2px;
+  text-shadow: 0 2px 12px rgba(0,0,0,.15);
+}
+.mol-metrics-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold);
+  margin-top: 6px;
+  letter-spacing: .3px;
+}
+.mol-metrics-hint {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255,255,255,.45);
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.mol-metrics-hint svg {
+  opacity: 0.6;
+}
+
+/* Expanded chart section */
+.mol-metrics-chart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  position: relative;
+  z-index: 1;
+  animation: fadeUp .35s ease forwards;
+}
+.mol-metrics-chart svg {
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,.2));
+}
+.mol-metrics-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mol-metrics-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 10px 12px;
+  background: rgba(255,255,255,.06);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  transition: all .2s ease;
+}
+.mol-metrics-legend-item:hover {
+  background: rgba(255,255,255,.1);
+  transform: translateX(4px);
+}
+.mol-metrics-legend-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.mol-metrics-legend-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,.8);
+  flex: 1;
+  min-width: 80px;
+}
+.mol-metrics-legend-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--white);
+  min-width: 24px;
+  text-align: right;
+}
+
+@media (max-width: 600px) {
+  .mol-metrics-top {
+    flex-direction: column;
+    text-align: center;
+  }
+  .mol-metrics-greeting {
+    text-align: center;
+  }
+  .mol-metrics-chart {
+    flex-direction: column;
+    gap: 24px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   MOLECULES BY STATE SECTION (Dashboard)
+   ═══════════════════════════════════════════════════ */
+.mol-by-state-section {
+  margin-bottom: 28px;
+  opacity: 0;
+  animation: fadeUp .4s ease .08s forwards;
+}
+.mol-by-state-header {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.mol-by-state-title {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.mol-by-state-subtitle {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.mol-by-state-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+@media (max-width: 1200px) {
+  .mol-by-state-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 800px) {
+  .mol-by-state-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 500px) {
+  .mol-by-state-grid { grid-template-columns: 1fr; }
+}
+.mol-state-column {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: all .25s ease;
+  box-shadow: 0 2px 8px rgba(13,27,42,.04);
+}
+.mol-state-column:hover {
+  border-color: var(--border-dk);
+  box-shadow: 0 4px 16px rgba(13,27,42,.08);
+}
+.mol-state-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(13,27,42,.02) 0%, transparent 100%);
+}
+.mol-state-badge {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  padding: 5px 12px;
+  border-radius: 8px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.mol-state-count {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--navy);
+  background: var(--off);
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mol-state-list {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 60px;
+}
+.mol-state-item {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--off);
+  cursor: pointer;
+  transition: all .2s cubic-bezier(.22,1,.36,1);
+  border: 1px solid transparent;
+}
+.mol-state-item:hover {
+  background: var(--gold-pale);
+  border-color: rgba(200,151,58,.2);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(200,151,58,.1);
+}
+.mol-state-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mol-state-item-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,.15);
+}
+.mol-state-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
+.mol-state-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.mol-state-quadrant {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+.mol-state-quadrant.qA { background: rgba(255,171,0,.15); color: #D97706; }
+.mol-state-quadrant.qB { background: rgba(59,130,246,.15); color: #2563EB; }
+.mol-state-quadrant.qC { background: rgba(239,68,68,.12); color: #DC2626; }
+.mol-state-quadrant.qD { background: rgba(34,197,94,.15); color: #16A34A; }
+.mol-state-quadrant.done {
+  background: linear-gradient(135deg, rgba(34,197,94,.15), rgba(59,130,246,.1));
+  color: #16A34A;
+}
+.mol-state-item-progress {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--surface);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════════════════════
+   MOLECULE TABLE FILTER BAR
+   ═══════════════════════════════════════════════════ */
+.mol-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(13,27,42,.015) 0%, transparent 100%);
+  flex-wrap: wrap;
+}
+.mol-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.mol-filter-btn:hover {
+  border-color: var(--border-dk);
+  color: var(--ink);
+  background: var(--off);
+}
+.mol-filter-btn.active {
+  border-color: var(--gold);
+  background: var(--gold-pale);
+  color: var(--gold);
+}
+.mol-filter-btn.active .mol-filter-count {
+  background: var(--gold);
+  color: var(--white);
+}
+.mol-filter-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.mol-filter-count {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--off);
+  color: var(--muted);
+  padding: 2px 6px;
+  border-radius: 5px;
+  min-width: 18px;
+  text-align: center;
+  transition: all .2s ease;
+}
+
+/* 6-column table row */
+.mol-row.mol-row-6 {
+  grid-template-columns: 2fr 100px 1fr 140px 90px 80px;
+}
+@media (max-width: 900px) {
+  .mol-row.mol-row-6 {
+    grid-template-columns: 1.5fr 80px 1fr 100px 70px 70px;
+  }
+}
+
+/* Status badge in table */
+.mol-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* Empty state */
+.mol-empty {
+  padding: 40px 22px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
 
