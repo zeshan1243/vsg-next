@@ -16,10 +16,10 @@ const QUAD_CELLS = [
 ] as const;
 
 const HIER_PILLS = [
-  { level: 'L1', label: 'OKR', delay: '.15s' },
-  { level: 'L2', label: 'KPI', delay: '.25s' },
-  { level: 'L3', label: 'Job', delay: '.35s' },
-  { level: 'L4', label: 'Task', delay: '.45s' },
+  { level: 'L1', label: 'OKR', delay: '.15s', color: 'var(--quad-a)' },
+  { level: 'L2', label: 'KPI', delay: '.25s', color: 'var(--quad-b)' },
+  { level: 'L3', label: 'Job', delay: '.35s', color: 'var(--quad-c)' },
+  { level: 'L4', label: 'Task', delay: '.45s', color: 'var(--quad-d)' },
 ];
 
 export default function LoginPage() {
@@ -73,12 +73,12 @@ export default function LoginPage() {
 
         <div className="brand-bottom">
           <p className="brand-tagline">
-            Strategy meets<br /><em style={{ fontStyle: 'normal', color: 'var(--gold)' }}>execution.</em><br />Verified.
+            Strategy meets<br /><span style={{ color: 'var(--quad-a)' }}>execution.</span>
           </p>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {HIER_PILLS.map(({ level, label, delay }) => (
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {HIER_PILLS.map(({ level, label, delay, color }) => (
               <div key={level} className="hier-pill" style={{ animationDelay: delay }}>
-                <span className="hier-level">{level}</span>
+                <span className="hier-level" style={{ color }}>{level}</span>
                 {label}
               </div>
             ))}
@@ -90,16 +90,15 @@ export default function LoginPage() {
       <main className="form-panel">
         <div className="form-card">
 
-          <div style={{ marginBottom: '36px' }}>
-            <div className="form-head-eyebrow">
-              <span className="eyebrow-line" />
+          <div style={{ marginBottom: '32px' }}>
+            <p className="text-xs-medium" style={{ color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
               Secure Access
-            </div>
-            <h1 className="font-syne" style={{ fontSize: '34px', fontWeight: 800, color: 'var(--navy)', letterSpacing: '-.6px', lineHeight: 1.1, marginBottom: '10px' }}>
-              Welcome back.
+            </p>
+            <h1 className="display-xs-semibold" style={{ color: 'var(--navy)', marginBottom: '8px' }}>
+              Welcome back
             </h1>
-            <p style={{ fontSize: '15px', color: 'var(--muted)', lineHeight: 1.55 }}>
-              Sign in to your Molecule workspace and continue where you left off.
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>
+              Sign in to continue to your workspace
             </p>
           </div>
 
@@ -173,9 +172,10 @@ export default function LoginPage() {
           </div>
 
           {/* Meta row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '26px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
             <label
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--muted)', cursor: 'pointer', userSelect: 'none' }}
+              className="text-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--muted)', cursor: 'pointer', userSelect: 'none' }}
               onClick={() => setRemembered(!remembered)}
             >
               <div className={`custom-cb${remembered ? ' checked' : ''}`} />
@@ -183,7 +183,10 @@ export default function LoginPage() {
             </label>
             <Link
               href="/forgot-password"
-              style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gold)', textDecoration: 'none' }}
+              className="text-sm-medium"
+              style={{ color: 'var(--navy)', textDecoration: 'none', transition: 'color .2s' }}
+              onMouseOver={(e) => e.currentTarget.style.color = 'var(--quad-b)'}
+              onMouseOut={(e) => e.currentTarget.style.color = 'var(--navy)'}
             >
               Forgot password?
             </Link>

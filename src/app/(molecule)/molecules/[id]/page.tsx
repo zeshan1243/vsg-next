@@ -307,9 +307,9 @@ export default function MoleculeOverviewPage() {
                 <text
                   x="170" y="-4"
                   textAnchor="middle"
-                  fontFamily="Syne, sans-serif"
+                  fontFamily="var(--font-sans)"
                   fontSize="11"
-                  fontWeight="800"
+                  fontWeight="700"
                   fill="white"
                 >{completedQuads.length * 25}%</text>
               </g>
@@ -317,7 +317,6 @@ export default function MoleculeOverviewPage() {
               {PIE_SECTORS.map(s => {
                 const quadKey = s.code.slice(-1).toLowerCase() as Quad;
                 const isCompleted = completedQuads.includes(quadKey);
-                // 50% opacity until the quadrant is completed, 100% after.
                 return (
                   <g
                     key={s.code}
@@ -338,9 +337,9 @@ export default function MoleculeOverviewPage() {
                       x={s.lx} y={s.ly - 7}
                       textAnchor="middle"
                       fill="rgba(255,255,255,.75)"
-                      fontFamily="Syne, sans-serif"
+                      fontFamily="var(--font-sans)"
                       fontSize="10"
-                      fontWeight="700"
+                      fontWeight="600"
                       letterSpacing="1"
                       style={{ pointerEvents: 'none' }}
                     >
@@ -350,9 +349,9 @@ export default function MoleculeOverviewPage() {
                       x={s.lx} y={s.ly + 8}
                       textAnchor="middle"
                       fill="white"
-                      fontFamily="Syne, sans-serif"
+                      fontFamily="var(--font-sans)"
                       fontSize="11"
-                      fontWeight="800"
+                      fontWeight="700"
                       style={{ pointerEvents: 'none' }}
                     >
                       {s.label}
@@ -366,9 +365,9 @@ export default function MoleculeOverviewPage() {
                 <text
                   x="170" y="174"
                   textAnchor="middle"
-                  fontFamily="Syne, sans-serif"
+                  fontFamily="var(--font-sans)"
                   fontSize="13"
-                  fontWeight="800"
+                  fontWeight="700"
                   fill="var(--navy)"
                 >i</text>
               </g>

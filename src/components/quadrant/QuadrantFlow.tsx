@@ -21,7 +21,7 @@ interface Okr  { id: string; number: string; text: string; color: OkrColor; from
 interface FinalTask { id: string; text: string; done: boolean; linkedTo: string }
 interface FinalJob { id: string; number: string; text: string; linkedTo: string; finalTasks: FinalTask[]; draft: string }
 interface FinalKpi { id: string; number: string; text: string; linkedTo: string; finalJobs: FinalJob[]; draft: string }
-interface FinalOkr { id: string; number: string; text: string; color: OkrColor; linkedTo: string; finalKpis: FinalKpi[]; draft: string }
+interface FinalOkr { id: string; number: string; text: string; color: OkrColor; linkedTo: string[]; finalKpis: FinalKpi[]; draft: string }
 interface FileEntry { id: string; name: string; size: string }
 interface TabContent { objective: string; okrs: Okr[]; finalOkrs: FinalOkr[]; files: FileEntry[] }
 
@@ -131,7 +131,7 @@ function emptyJob(id: string, num: string, text: string, extras?: Partial<Job>):
 }
 
 function emptyFinalOkr(
-  id: string, num: string, text: string, color: OkrColor, linkedTo: string,
+  id: string, num: string, text: string, color: OkrColor, linkedTo: string[],
   extras?: Partial<FinalOkr>,
 ): FinalOkr {
   return { id, number: num, text, color, linkedTo, draft: '', finalKpis: [], ...extras };
@@ -166,7 +166,7 @@ function prefilledFinalOkrs(okrs: Okr[], depth: 'okrs' | 'kpis' | 'jobs'): Final
       String(i + 1).padStart(2, '0'),
       o.text,
       o.color,
-      o.id,
+      [o.id],
       { finalKpis },
     );
   });
@@ -235,7 +235,7 @@ function makeInitialTabs(quad: Quad): Record<TabId, TabContent> {
         ? prefilledFinalOkrs(base.vendors.okrs, prefillDepth)
         : [emptyFinalOkr('v-fo1', '01',
             'Deliver expo with 50 signed vendors & 500+ ticket pre-sales by Mar 28',
-            'peach', 'v-o1')],
+            'peach', ['v-o1'])],
     },
     partners:   { ...base.partners,   finalOkrs: prefillDepth ? prefilledFinalOkrs(base.partners.okrs,   prefillDepth) : [] },
     location:   { ...base.location,   finalOkrs: prefillDepth ? prefilledFinalOkrs(base.location.okrs,   prefillDepth) : [] },
@@ -384,7 +384,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
   function removeFile(fileId: string) {
     patchTab(t => ({ ...t, files: t.files.filter(f => f.id !== fileId) }));
   }
-  function addFinalOkr(text: string, linkedTo: string) {
+  function addFinalOkr(text: string, linkedTo: string[]) {
     patchTab(t => ({
       ...t,
       finalOkrs: [
@@ -1222,18 +1222,33 @@ function Step5Finalize({
   tabLabel: string;
   quad: Quad;
   finalStack: string;
-  onAdd: (text: string, linkedTo: string) => void;
+  onAdd: (text: string, linkedTo: string[]) => void;
   onRemove: (foId: string) => void;
 }) {
   const [draft, setDraft] = useState('');
-  const [linkedTo, setLinkedTo] = useState<string>(okrs[0]?.id ?? '');
+  const [linkedTo, setLinkedTo] = useState<string[]>(okrs[0] ? [okrs[0].id] : []);
+  const [linkDropdownOpen, setLinkDropdownOpen] = useState(false);
+
+  function toggleLink(okrId: string) {
+    setLinkedTo(prev =>
+      prev.includes(okrId)
+        ? prev.filter(id => id !== okrId)
+        : [...prev, okrId]
+    );
+  }
 
   function submit() {
     const text = draft.trim();
-    if (!text || !linkedTo) return;
+    if (!text || linkedTo.length === 0) return;
     onAdd(text, linkedTo);
     setDraft('');
+    setLinkedTo(okrs[0] ? [okrs[0].id] : []);
   }
+
+  const linkedOkrNumbers = linkedTo
+    .map(id => okrs.find(o => o.id === id)?.number)
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <>
@@ -1244,7 +1259,7 @@ function Step5Finalize({
           </svg>
         </div>
         <div className="qb-input-text">
-          Finalize — write polished OKRs for Quadrant {quad.toUpperCase()} ({finalStack} focus) and link each to a Step 1 draft
+          Finalize — write polished OKRs for Quadrant {quad.toUpperCase()} ({finalStack} focus) and link to one or more Step 1 drafts
         </div>
       </div>
 
@@ -1269,14 +1284,16 @@ function Step5Finalize({
       <div className="qa-section">
         <div className="qa-section-label">Finalized OKRs</div>
         {finalOkrs.map(fo => {
-          const linked = okrs.find(o => o.id === fo.linkedTo);
+          const linkedOkrs = fo.linkedTo
+            .map(id => okrs.find(o => o.id === id))
+            .filter(Boolean) as Okr[];
           return (
             <div key={fo.id} className={`qa-okr-row ${fo.color}`}>
               <div className={`qa-okr-num ${fo.color}`}>{fo.number}</div>
               <div className="qa-okr-text">
                 {fo.text}
-                {linked
-                  ? <span className="qa-okr-from"> (linked to OKR {linked.number})</span>
+                {linkedOkrs.length > 0
+                  ? <span className="qa-okr-from"> (linked to OKR {linkedOkrs.map(o => o.number).join(', ')})</span>
                   : <span className="qa-okr-from" style={{ color: 'var(--muted)' }}> (unlinked)</span>}
               </div>
               <button type="button" className="qa-okr-x" onClick={() => onRemove(fo.id)} aria-label="Remove finalized OKR">{XIcon}</button>
@@ -1284,21 +1301,52 @@ function Step5Finalize({
           );
         })}
 
-        <div className="qa-add-row">
-          <select
-            className="qa-add-select"
-            value={linkedTo}
-            onChange={e => setLinkedTo(e.target.value)}
-            disabled={okrs.length === 0}
-          >
-            {okrs.length === 0
-              ? <option value="">No Step 1 drafts</option>
-              : okrs.map(o => (
-                  <option key={o.id} value={o.id}>
-                    OKR {o.number} — {o.text.length > 36 ? `${o.text.slice(0, 36)}…` : o.text}
-                  </option>
-                ))}
-          </select>
+        <div className="qa-add-row" style={{ flexWrap: 'wrap', gap: '10px' }}>
+          {/* Multi-select dropdown for linking OKRs */}
+          <div className="qa-link-dropdown" style={{ position: 'relative', minWidth: '200px' }}>
+            <button
+              type="button"
+              className="qa-link-trigger"
+              onClick={() => setLinkDropdownOpen(!linkDropdownOpen)}
+              disabled={okrs.length === 0}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              {linkedTo.length === 0
+                ? 'Select OKRs to link'
+                : `Linked: OKR ${linkedOkrNumbers}`}
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto' }}>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {linkDropdownOpen && (
+              <div className="qa-link-menu">
+                {okrs.map(o => {
+                  const isSelected = linkedTo.includes(o.id);
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      className={`qa-link-option${isSelected ? ' selected' : ''}`}
+                      onClick={() => toggleLink(o.id)}
+                    >
+                      <div className={`qa-link-check${isSelected ? ' checked' : ''}`}>
+                        {isSelected && (
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="qa-link-num">{o.number}</span>
+                      <span className="qa-link-text">{o.text.length > 40 ? `${o.text.slice(0, 40)}…` : o.text}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           <input
             className="qa-add-input"
             type="text"
@@ -1306,9 +1354,11 @@ function Step5Finalize({
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+            onFocus={() => setLinkDropdownOpen(false)}
             disabled={okrs.length === 0}
+            style={{ flex: 1, minWidth: '200px' }}
           />
-          <button type="button" className="qa-add-btn" onClick={submit} disabled={okrs.length === 0 || !draft.trim()}>
+          <button type="button" className="qa-add-btn" onClick={submit} disabled={okrs.length === 0 || !draft.trim() || linkedTo.length === 0}>
             {PlusIcon}
             Finalize
           </button>
