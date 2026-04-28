@@ -28,11 +28,11 @@ interface OKR {
 }
 
 const A = {
-  alex:   { name: 'Alex Kim',         bg: 'rgba(59,184,127,.1)',  fg: '#3BB87F' },
-  maria:  { name: 'Maria Rodriguez',  bg: 'rgba(42,184,216,.1)',  fg: '#2AB8D8' },
-  david:  { name: 'David Wang',       bg: 'rgba(124,92,191,.1)',  fg: '#7C5CBF' },
-  james:  { name: 'James Liu',        bg: 'rgba(200,151,58,.1)',  fg: '#C8973A' },
-  tina:   { name: 'Tina Park',        bg: 'rgba(232,155,42,.1)',  fg: '#E89B2A' },
+  alex:   { name: 'Alex Kim',         bg: 'rgba(255,171,0,.1)',   fg: '#FFAB00' },
+  maria:  { name: 'Maria Rodriguez',  bg: 'rgba(59,130,246,.1)',  fg: '#3B82F6' },
+  david:  { name: 'David Wang',       bg: 'rgba(239,68,68,.1)',   fg: '#EF4444' },
+  james:  { name: 'James Liu',        bg: 'rgba(34,197,94,.1)',   fg: '#22C55E' },
+  tina:   { name: 'Tina Park',        bg: 'rgba(236,72,153,.1)',  fg: '#EC4899' },
 };
 
 const OKRS: OKR[] = [
@@ -45,12 +45,12 @@ const OKRS: OKR[] = [
       {
         id: 'kpi-1-1', name: 'Vendor satisfaction score',
         target: 'Target: 90%', actual: 'Actual: 94%', hit: true,
-        progressPct: 100, progressColor: '#3BB87F',
+        progressPct: 100, progressColor: '#22C55E',
         jobs: [
           {
             id: 'job-1-1-1', title: 'Vendor onboarding & contracts',
             meta: 'Alex Kim · Stump-C · Due: Mar 10, 2026',
-            status: 'done', statusLabel: 'Completed', dotColor: '#3BB87F',
+            status: 'done', statusLabel: 'Completed', dotColor: '#22C55E',
             tasks: [
               { id: 't-1-1-1-1', text: 'Draft vendor contract templates', state: 'done', assignee: A.alex },
               { id: 't-1-1-1-2', text: 'Negotiate terms with 10 vendors', state: 'done', assignee: A.alex },
@@ -60,7 +60,7 @@ const OKRS: OKR[] = [
           {
             id: 'job-1-1-2', title: 'Vendor satisfaction survey',
             meta: 'Maria Rodriguez · Stump-B · Due: Apr 02, 2026',
-            status: 'done', statusLabel: 'Completed', dotColor: '#3BB87F',
+            status: 'done', statusLabel: 'Completed', dotColor: '#22C55E',
             tasks: [
               { id: 't-1-1-2-1', text: 'Design survey questionnaire', state: 'done', assignee: A.maria },
               { id: 't-1-1-2-2', text: 'Send surveys to all vendors',  state: 'done', assignee: A.maria },
@@ -72,12 +72,12 @@ const OKRS: OKR[] = [
       {
         id: 'kpi-1-2', name: 'Contract turnaround time',
         target: 'Target: < 5 days', actual: 'Actual: 3 days', hit: true,
-        progressPct: 100, progressColor: '#3BB87F',
+        progressPct: 100, progressColor: '#22C55E',
         jobs: [
           {
             id: 'job-1-2-1', title: 'Streamline legal review process',
             meta: 'James Liu · Lead Q-A · Due: Mar 05, 2026',
-            status: 'done', statusLabel: 'Completed', dotColor: '#3BB87F',
+            status: 'done', statusLabel: 'Completed', dotColor: '#22C55E',
             tasks: [
               { id: 't-1-2-1-1', text: 'Create standardized contract templates', state: 'done', assignee: A.james },
               { id: 't-1-2-1-2', text: 'Set up digital signing workflow',        state: 'done', assignee: A.david },
@@ -88,12 +88,12 @@ const OKRS: OKR[] = [
       {
         id: 'kpi-1-3', name: 'Vendor retention rate',
         target: 'Target: 85%', actual: 'Actual: 92%', hit: true,
-        progressPct: 100, progressColor: '#3BB87F',
+        progressPct: 100, progressColor: '#22C55E',
         jobs: [
           {
             id: 'job-1-3-1', title: 'Vendor relationship management',
             meta: 'Maria Rodriguez · Stump-B · Due: Mar 25, 2026',
-            status: 'done', statusLabel: 'Completed', dotColor: '#3BB87F',
+            status: 'done', statusLabel: 'Completed', dotColor: '#22C55E',
             tasks: [
               { id: 't-1-3-1-1', text: 'Weekly vendor check-in calls', state: 'done', assignee: A.maria },
               { id: 't-1-3-1-2', text: 'Resolve vendor escalations',   state: 'done', assignee: A.maria },
@@ -112,12 +112,12 @@ const OKRS: OKR[] = [
       {
         id: 'kpi-2-1', name: 'Social media impressions',
         target: 'Target: 50K', actual: 'Actual: 47K', hit: false,
-        progressPct: 94, progressColor: '#E89B2A',
+        progressPct: 94, progressColor: '#FFAB00',
         jobs: [
           {
             id: 'job-2-1-1', title: 'Social media campaign execution',
             meta: 'Maria Rodriguez · Stump-B · Due: Apr 10, 2026',
-            status: 'progress', statusLabel: 'In Progress', dotColor: '#E89B2A',
+            status: 'progress', statusLabel: 'In Progress', dotColor: '#FFAB00',
             tasks: [
               { id: 't-2-1-1-1', text: 'Create content calendar',     state: 'done',     assignee: A.maria },
               { id: 't-2-1-1-2', text: 'Design post graphics & reels', state: 'done',     assignee: A.david },
@@ -129,12 +129,12 @@ const OKRS: OKR[] = [
       {
         id: 'kpi-2-2', name: 'Email open rate',
         target: 'Target: 25%', actual: 'Actual: 28%', hit: true,
-        progressPct: 100, progressColor: '#3BB87F',
+        progressPct: 100, progressColor: '#22C55E',
         jobs: [
           {
             id: 'job-2-2-1', title: 'Email marketing automation',
             meta: 'James Liu · Lead Q-A · Due: Apr 01, 2026',
-            status: 'done', statusLabel: 'Completed', dotColor: '#3BB87F',
+            status: 'done', statusLabel: 'Completed', dotColor: '#22C55E',
             tasks: [
               { id: 't-2-2-1-1', text: 'Segment email audience lists',        state: 'done', assignee: A.james },
               { id: 't-2-2-1-2', text: 'Design email templates & A/B tests',  state: 'done', assignee: A.david },
@@ -146,12 +146,12 @@ const OKRS: OKR[] = [
       {
         id: 'kpi-2-3', name: 'Total event registrations',
         target: 'Target: 5,000', actual: 'Actual: 4,200', hit: false,
-        progressPct: 84, progressColor: '#E89B2A',
+        progressPct: 84, progressColor: '#FFAB00',
         jobs: [
           {
             id: 'job-2-3-1', title: 'Registration push & outreach',
             meta: 'Tina Park · Stump-D · Due: Apr 12, 2026',
-            status: 'progress', statusLabel: 'In Progress', dotColor: '#E89B2A',
+            status: 'progress', statusLabel: 'In Progress', dotColor: '#FFAB00',
             tasks: [
               { id: 't-2-3-1-1', text: 'Set up registration landing page', state: 'done',     assignee: A.tina },
               { id: 't-2-3-1-2', text: 'Send invites to past attendees',   state: 'done',     assignee: A.tina },
@@ -172,12 +172,12 @@ const OKRS: OKR[] = [
       {
         id: 'kpi-3-1', name: 'Budget utilization',
         target: 'Target: < 100%', actual: 'Actual: 92%', hit: true,
-        progressPct: 92, progressColor: '#3BB87F',
+        progressPct: 92, progressColor: '#22C55E',
         jobs: [
           {
             id: 'job-3-1-1', title: 'Final vendor payments processing',
             meta: 'Tina Park · Stump-D · Due: Apr 10, 2026',
-            status: 'progress', statusLabel: 'In Progress', dotColor: '#E89B2A',
+            status: 'progress', statusLabel: 'In Progress', dotColor: '#FFAB00',
             tasks: [
               { id: 't-3-1-1-1', text: 'Catering deposit paid — $12,500',     state: 'done',     assignee: A.tina },
               { id: 't-3-1-1-2', text: 'Venue balance due — $18,000',          state: 'progress', assignee: A.tina },
@@ -191,12 +191,12 @@ const OKRS: OKR[] = [
       {
         id: 'kpi-3-2', name: 'Issue resolution time',
         target: 'Target: < 2 hrs', actual: 'Actual: 1.5 hrs', hit: true,
-        progressPct: 100, progressColor: '#3BB87F',
+        progressPct: 100, progressColor: '#22C55E',
         jobs: [
           {
             id: 'job-3-2-1', title: 'Venue setup & logistics coordination',
             meta: 'Alex Kim · Stump-C · Due: Apr 13, 2026',
-            status: 'done', statusLabel: 'Completed', dotColor: '#3BB87F',
+            status: 'done', statusLabel: 'Completed', dotColor: '#22C55E',
             tasks: [
               { id: 't-3-2-1-1', text: 'Floor plan walkthrough & approval',   state: 'done', assignee: A.alex },
               { id: 't-3-2-1-2', text: 'AV equipment testing & sign-off',     state: 'done', assignee: A.alex },
@@ -214,8 +214,8 @@ const DEFAULT_OPEN = new Set(['okr-01', 'kpi-1-1', 'job-1-1-1']);
 
 const statusStyle = (s: Status) =>
   s === 'done'
-    ? { bg: 'rgba(59,184,127,.1)',  fg: '#3BB87F' }
-    : { bg: 'rgba(232,155,42,.1)',  fg: '#E89B2A' };
+    ? { bg: 'rgba(34,197,94,.1)',  fg: '#22C55E' }
+    : { bg: 'rgba(255,171,0,.1)',  fg: '#FFAB00' };
 
 const ChevronDown = (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -236,7 +236,7 @@ const ChevronDownXs = (
 function TaskIcon({ state }: { state: TaskState }) {
   if (state === 'done') {
     return (
-      <div className="task-check" style={{ background: 'rgba(59,184,127,.1)', color: '#3BB87F' }}>
+      <div className="task-check" style={{ background: 'rgba(34,197,94,.1)', color: '#22C55E' }}>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
           <polyline points="20 6 9 17 4 12" />
         </svg>
@@ -245,7 +245,7 @@ function TaskIcon({ state }: { state: TaskState }) {
   }
   if (state === 'progress') {
     return (
-      <div className="task-check" style={{ background: 'rgba(232,155,42,.1)', color: '#E89B2A' }}>
+      <div className="task-check" style={{ background: 'rgba(255,171,0,.1)', color: '#FFAB00' }}>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="12" cy="12" r="6" />
         </svg>
@@ -253,7 +253,7 @@ function TaskIcon({ state }: { state: TaskState }) {
     );
   }
   return (
-    <div className="task-check" style={{ background: 'rgba(138,153,170,.08)', color: '#8A99AA' }}>
+    <div className="task-check" style={{ background: 'rgba(100,116,139,.08)', color: '#64748B' }}>
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="10" />
       </svg>
@@ -319,7 +319,7 @@ export default function FinalizedViewPage() {
           <div className="ob-content">
             <div className="ob-eyebrow">
               <span className="ob-id">{mol.code}</span>
-              <span className="ob-status" style={{ background: 'rgba(232,155,42,.15)', color: '#E89B2A' }}>In Progress</span>
+              <span className="ob-status" style={{ background: 'rgba(255,171,0,.15)', color: '#FFAB00' }}>In Progress</span>
             </div>
             <div className="ob-name">{mol.name}</div>
             <div className="ob-objective">
@@ -335,7 +335,7 @@ export default function FinalizedViewPage() {
                 </div>
               </div>
               <div className="ob-person">
-                <div className="ob-person-av" style={{ background: 'linear-gradient(135deg,var(--gold-lt),#C8973A)' }}>JL</div>
+                <div className="ob-person-av" style={{ background: 'linear-gradient(135deg,var(--pink-light),var(--pink-dark))' }}>JL</div>
                 <div>
                   <div className="ob-person-name">James Liu</div>
                   <div className="ob-person-role" style={{ color: 'var(--gold-lt)' }}>Lead</div>
@@ -401,8 +401,8 @@ export default function FinalizedViewPage() {
                     {okr.kpis.map(kpi => {
                       const kpiOpen = open.has(kpi.id);
                       const kpiSt = kpi.hit
-                        ? { bg: 'rgba(59,184,127,.1)', fg: '#3BB87F', label: 'Hit' }
-                        : { bg: 'rgba(232,155,42,.1)', fg: '#E89B2A', label: 'Missed' };
+                        ? { bg: 'rgba(34,197,94,.1)', fg: '#22C55E', label: 'Hit' }
+                        : { bg: 'rgba(239,68,68,.1)', fg: '#EF4444', label: 'Missed' };
                       return (
                         <div key={kpi.id} className="kpi-block">
                           <div className="kpi-head" onClick={() => toggle(kpi.id)}>

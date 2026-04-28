@@ -23,13 +23,13 @@ interface QuadDef {
 interface TeamMember { initials: string; gradient: string; name: string; }
 
 const TEAM: TeamMember[] = [
-  { initials: 'SK', gradient: 'linear-gradient(135deg, #E8B045, #F5C670)', name: 'Sarah Kaplan' },
-  { initials: 'MR', gradient: 'linear-gradient(135deg, #2AB8D8, #5EC8E0)', name: 'Marcus Reeves' },
-  { initials: 'MC', gradient: 'linear-gradient(135deg, #3BB87F, #5EC89F)', name: 'Mike Chan' },
-  { initials: 'ET', gradient: 'linear-gradient(135deg, #4AB89E, #6ECAB5)', name: 'Elena Torres' },
-  { initials: 'DK', gradient: 'linear-gradient(135deg, #3BB87F, #5EC89F)', name: 'David Kim' },
-  { initials: 'JB', gradient: 'linear-gradient(135deg, #E89B2A, #F5B23E)', name: 'Jenna Brooks' },
-  { initials: 'LW', gradient: 'linear-gradient(135deg, #7C5CBF, #9A7FD6)', name: 'Liam Walker' },
+  { initials: 'SK', gradient: 'linear-gradient(135deg, #FFAB00, #FFD54F)', name: 'Sarah Kaplan' },
+  { initials: 'MR', gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)', name: 'Marcus Reeves' },
+  { initials: 'MC', gradient: 'linear-gradient(135deg, #EF4444, #F87171)', name: 'Mike Chan' },
+  { initials: 'ET', gradient: 'linear-gradient(135deg, #22C55E, #4ADE80)', name: 'Elena Torres' },
+  { initials: 'DK', gradient: 'linear-gradient(135deg, #EC4899, #F9A8D4)', name: 'David Kim' },
+  { initials: 'JB', gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)', name: 'Jenna Brooks' },
+  { initials: 'LW', gradient: 'linear-gradient(135deg, #0F172A, #334155)', name: 'Liam Walker' },
 ];
 
 const BookIcon = (
@@ -100,25 +100,25 @@ const QUAD_INFO: Record<Quad, QuadInfo> = {
 const PIE_SECTORS = [
   {
     code: 'Q-D', label: 'Exchange',
-    fill: '#3BB87F',
+    fill: '#22C55E',
     d: 'M 170 170 L 170 5 A 165 165 0 0 1 335 170 Z',
     lx: 236, ly: 104, dx: 7, dy: -7,
   },
   {
     code: 'Q-B', label: 'Communication',
-    fill: '#3E7BF5',
+    fill: '#3B82F6',
     d: 'M 170 170 L 335 170 A 165 165 0 0 1 170 335 Z',
     lx: 236, ly: 236, dx: 7, dy: 7,
   },
   {
     code: 'Q-A', label: 'Coordinate',
-    fill: '#E8B045',
+    fill: '#FFAB00',
     d: 'M 170 170 L 170 335 A 165 165 0 0 1 5 170 Z',
     lx: 104, ly: 236, dx: -7, dy: 7,
   },
   {
     code: 'Q-C', label: 'Knowledge',
-    fill: '#E55050',
+    fill: '#EF4444',
     d: 'M 170 170 L 5 170 A 165 165 0 0 1 170 5 Z',
     lx: 104, ly: 104, dx: -7, dy: -7,
   },
@@ -500,50 +500,73 @@ export default function MoleculeOverviewPage() {
                 </div>
 
                 {/* Molecule Structure — Outer Stack */}
-                <div className="ov-modal-section">
-                  <div className="ov-modal-section-title">
-                    Molecule Structure <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>( Outer Stack )</span>
-                  </div>
-                  <div className="ms-quad-grid" style={{ marginTop: '10px' }}>
-                    <div className="ms-quad-cell red">
-                      <div className="ms-quad-label">Q·C</div>
-                      <div className="ms-quad-name">Knowledge</div>
+                {(() => {
+                  // A quad is "done" if maxSteps >= 5 OR it's in completedQuads
+                  const isQuadDone = (q: Quad) => maxSteps[q] >= 5 || completedQuads.includes(q);
+                  // Current quad = first unlocked quad that's not done
+                  const quadOrder: Quad[] = ['a', 'b', 'c', 'd'];
+                  const currentQuad = quadOrder.find(q => isQuadUnlocked(q, completedQuads) && !isQuadDone(q)) || null;
+
+                  return (
+                    <div className="ov-modal-section">
+                      <div className="ov-modal-section-title">
+                        Molecule Structure <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>( Outer Stack )</span>
+                      </div>
+                      <div className="ms-quad-grid" style={{ marginTop: '10px' }}>
+                        {([
+                          { color: 'red' as const, q: 'c' as Quad, label: 'Q·C', name: 'Knowledge' },
+                          { color: 'green' as const, q: 'd' as Quad, label: 'Q·D', name: 'Exchange' },
+                          { color: 'gold' as const, q: 'a' as Quad, label: 'Q·A', name: 'Coordination' },
+                          { color: 'blue' as const, q: 'b' as Quad, label: 'Q·B', name: 'Communication' },
+                        ]).map(({ color, q, label, name }) => {
+                          const isDone = isQuadDone(q);
+                          const isCurrent = currentQuad === q;
+                          return (
+                            <div key={q} className={`ms-quad-cell ${color}${isDone ? ' active' : ''}${isCurrent ? ' current' : ''}`}>
+                              <div className="ms-quad-label">{label}</div>
+                              <div className="ms-quad-name">{name}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="ms-quad-cell green">
-                      <div className="ms-quad-label">Q·D</div>
-                      <div className="ms-quad-name">Exchange</div>
-                    </div>
-                    <div className="ms-quad-cell gold">
-                      <div className="ms-quad-label">Q·A</div>
-                      <div className="ms-quad-name">Coordination</div>
-                    </div>
-                    <div className="ms-quad-cell blue">
-                      <div className="ms-quad-label">Q·B</div>
-                      <div className="ms-quad-name">Communication</div>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Molecule Structure — Inner Stack */}
-                <div className="ov-modal-section">
-                  <div className="ov-modal-section-title">
-                    Molecule Structure <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>( Inner Stack )</span>
-                  </div>
-                  <div className="inner-stack-grid" style={{ marginTop: '10px' }}>
-                    {(['jobs', 'tasks', 'okrs', 'kpis'] as const).map(key => (
-                      <div key={key} className={`stack-cell ${key}`}>
-                        <div className="stack-cell-label">
-                          {key === 'jobs' ? 'Jobs' : key === 'tasks' ? 'Tasks' : key === 'okrs' ? 'OKRs' : 'KPIs'}
-                        </div>
-                        <div className="stack-pills">
-                          {['Locations', 'Attendance', 'Vendors', 'Partners'].map(p => (
-                            <div key={p} className="stack-pill">{p}</div>
-                          ))}
-                        </div>
+                {(() => {
+                  // Show progress for the quad being viewed in modal
+                  const viewedQuadStep = maxSteps[quadModal] || 0;
+                  // Step 1=OKRs, 2=KPIs, 3=Jobs, 4=Tasks, 5=Complete
+                  const stepMap: Record<string, number> = { okrs: 1, kpis: 2, jobs: 3, tasks: 4 };
+
+                  return (
+                    <div className="ov-modal-section">
+                      <div className="ov-modal-section-title">
+                        Molecule Structure <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>( Inner Stack )</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div className="inner-stack-grid" style={{ marginTop: '10px' }}>
+                        {(['jobs', 'tasks', 'okrs', 'kpis'] as const).map((key) => {
+                          const stepNeeded = stepMap[key];
+                          const isDone = viewedQuadStep >= stepNeeded;
+                          const isActive = viewedQuadStep === stepNeeded;
+                          return (
+                            <div key={key} className={`stack-cell ${key}${isDone ? ' visible' : ''}${isActive ? ' active' : ''}`}>
+                              <div className="stack-cell-label">
+                                {key === 'jobs' ? 'Jobs' : key === 'tasks' ? 'Tasks' : key === 'okrs' ? 'OKRs' : 'KPIs'}
+                              </div>
+                              <div className="stack-pills">
+                                {['Locations', 'Attendance', 'Vendors', 'Partners'].map(p => (
+                                  <div key={p} className="stack-pill">{p}</div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

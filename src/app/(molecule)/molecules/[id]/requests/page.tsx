@@ -49,11 +49,11 @@ const PRIORITY_STYLES: Record<Priority, { bg: string; fg: string }> = {
   Low:    { bg: 'var(--green-pale)',  fg: 'var(--success)' },
 };
 
-const GOLD_GRAD   = 'linear-gradient(135deg,var(--gold),var(--gold-lt))';
-const CYAN_GRAD   = 'linear-gradient(135deg,var(--cyan),#5EC8E0)';
-const GREEN_GRAD  = 'linear-gradient(135deg,var(--success),#5EC89F)';
-const PURPLE_GRAD = 'linear-gradient(135deg,var(--purple),#9A7FD6)';
-const ORANGE_GRAD = 'linear-gradient(135deg,var(--orange),#F0B254)';
+const GOLD_GRAD   = 'linear-gradient(135deg,var(--quad-a),var(--gold-lt))';
+const CYAN_GRAD   = 'linear-gradient(135deg,var(--quad-b),#60A5FA)';
+const GREEN_GRAD  = 'linear-gradient(135deg,var(--quad-d),#4ADE80)';
+const PURPLE_GRAD = 'linear-gradient(135deg,var(--purple),#A78BFA)';
+const ORANGE_GRAD = 'linear-gradient(135deg,var(--quad-c),#F87171)';
 
 const REQUESTS: Request[] = [
   {

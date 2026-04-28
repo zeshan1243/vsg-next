@@ -131,10 +131,10 @@ export default function MoleculeSidebar() {
     slug: string; cls: string; label: string; sub: string;
     icon: React.ReactNode; progress: number; color: string; quad: Quad;
   }> = [
-    { slug: '/quadrant-a', cls: 'nv-qa', label: 'Quadrant A', sub: 'Coordinate · OKR',    icon: QA_Icon, progress: quadPct('a'), color: '#E8B045', quad: 'a' },
-    { slug: '/quadrant-b', cls: 'nv-qb', label: 'Quadrant B', sub: 'Communication · KPI', icon: QB_Icon, progress: quadPct('b'), color: '#3E7BF5', quad: 'b' },
-    { slug: '/quadrant-c', cls: 'nv-qc', label: 'Quadrant C', sub: 'Knowledge · Jobs',    icon: QC_Icon, progress: quadPct('c'), color: '#E55050', quad: 'c' },
-    { slug: '/quadrant-d', cls: 'nv-qd', label: 'Quadrant D', sub: 'Exchange · Tasks',    icon: QD_Icon, progress: quadPct('d'), color: '#3BB87F', quad: 'd' },
+    { slug: '/quadrant-a', cls: 'nv-qa', label: 'Quadrant A', sub: 'Coordinate · OKR',    icon: QA_Icon, progress: quadPct('a'), color: '#FFAB00', quad: 'a' },
+    { slug: '/quadrant-b', cls: 'nv-qb', label: 'Quadrant B', sub: 'Communication · KPI', icon: QB_Icon, progress: quadPct('b'), color: '#3B82F6', quad: 'b' },
+    { slug: '/quadrant-c', cls: 'nv-qc', label: 'Quadrant C', sub: 'Knowledge · Jobs',    icon: QC_Icon, progress: quadPct('c'), color: '#EF4444', quad: 'c' },
+    { slug: '/quadrant-d', cls: 'nv-qd', label: 'Quadrant D', sub: 'Exchange · Tasks',    icon: QD_Icon, progress: quadPct('d'), color: '#22C55E', quad: 'd' },
   ];
 
   return (

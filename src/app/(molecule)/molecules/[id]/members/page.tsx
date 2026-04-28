@@ -30,10 +30,10 @@ const USERS: User[] = [
   { id: 'u4',  name: 'Rachel Nguyen',   initials: 'RN', color: 'var(--success)',role: 'user' },
   { id: 'u5',  name: 'Omar Hassan',     initials: 'OH', color: 'var(--purple)', role: 'user' },
   { id: 'u6',  name: 'Tyler Williams',  initials: 'TW', color: 'var(--warn)',   role: 'admin' },
-  { id: 'u7',  name: 'Rachel Park',     initials: 'RP', color: '#9B8EC4',        role: 'user' },
-  { id: 'u8',  name: 'Tom Nguyen',      initials: 'TN', color: '#6BA3BE',        role: 'user' },
-  { id: 'u9',  name: 'Nate Brooks',     initials: 'NB', color: '#5C8A6E',        role: 'user' },
-  { id: 'u10', name: 'Lena Walsh',      initials: 'LW', color: '#B8736A',        role: 'user' },
+  { id: 'u7',  name: 'Rachel Park',     initials: 'RP', color: '#8B5CF6',        role: 'user' },
+  { id: 'u8',  name: 'Tom Nguyen',      initials: 'TN', color: '#EC4899',        role: 'user' },
+  { id: 'u9',  name: 'Nate Brooks',     initials: 'NB', color: '#0F172A',        role: 'user' },
+  { id: 'u10', name: 'Lena Walsh',      initials: 'LW', color: '#64748B',        role: 'user' },
 ];
 
 const QUADS: { key: QuadKey; title: string; label: string; color: string }[] = [

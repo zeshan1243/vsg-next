@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { getMolecule } from '@/lib/molecules';
 import {
   NEXT_QUAD, QUAD_FINAL, STACK_LABEL, TOTAL_STEPS,
-  bumpQuadMaxStep, markQuadCompleted, setActiveQuad, setActiveStep, stackForStep,
+  bumpQuadMaxStep, getCompletedQuads, getQuadMaxStep, markQuadCompleted, setActiveQuad, setActiveStep, stackForStep,
   type Quad,
 } from '@/lib/progress';
 
@@ -87,13 +87,13 @@ interface StumpUser { id: string; name: string; initials: string; role: string; 
 
 const STUMP_CANDIDATES: StumpUser[] = [
   { id: 'u-1', name: 'Maria Chen',     initials: 'MC', role: 'Engineering Lead',   gradient: 'linear-gradient(135deg, var(--gold), var(--gold-lt))' },
-  { id: 'u-2', name: 'James Thompson', initials: 'JT', role: 'Program Manager',    gradient: 'linear-gradient(135deg, var(--purple), #9A7FD6)' },
-  { id: 'u-3', name: 'Elena Torres',   initials: 'ET', role: 'Operations Manager', gradient: 'linear-gradient(135deg, var(--cyan), #5EC8E0)' },
-  { id: 'u-4', name: 'Rachel Nguyen',  initials: 'RN', role: 'Design Lead',        gradient: 'linear-gradient(135deg, var(--success), #5EC89F)' },
-  { id: 'u-5', name: 'Omar Hassan',    initials: 'OH', role: 'Partner Relations',  gradient: 'linear-gradient(135deg, var(--purple), #9A7FD6)' },
-  { id: 'u-6', name: 'Tyler Williams', initials: 'TW', role: 'Venue Coordinator',  gradient: 'linear-gradient(135deg, var(--warn), #F0B254)' },
-  { id: 'u-7', name: 'Lena Walsh',     initials: 'LW', role: 'Floral Lead',        gradient: 'linear-gradient(135deg, #B8736A, #D48F87)' },
-  { id: 'u-8', name: 'Nate Brooks',    initials: 'NB', role: 'Marketing Manager',  gradient: 'linear-gradient(135deg, #5C8A6E, #7EAE92)' },
+  { id: 'u-2', name: 'James Thompson', initials: 'JT', role: 'Program Manager',    gradient: 'linear-gradient(135deg, var(--cyan), #60A5FA)' },
+  { id: 'u-3', name: 'Elena Torres',   initials: 'ET', role: 'Operations Manager', gradient: 'linear-gradient(135deg, var(--error), #F87171)' },
+  { id: 'u-4', name: 'Rachel Nguyen',  initials: 'RN', role: 'Design Lead',        gradient: 'linear-gradient(135deg, var(--success), #4ADE80)' },
+  { id: 'u-5', name: 'Omar Hassan',    initials: 'OH', role: 'Partner Relations',  gradient: 'linear-gradient(135deg, var(--pink), var(--pink-light))' },
+  { id: 'u-6', name: 'Tyler Williams', initials: 'TW', role: 'Venue Coordinator',  gradient: 'linear-gradient(135deg, var(--purple), #A78BFA)' },
+  { id: 'u-7', name: 'Lena Walsh',     initials: 'LW', role: 'Floral Lead',        gradient: 'linear-gradient(135deg, #0F172A, #334155)' },
+  { id: 'u-8', name: 'Nate Brooks',    initials: 'NB', role: 'Marketing Manager',  gradient: 'linear-gradient(135deg, #64748B, #94A3B8)' },
 ];
 
 const STACK_CELLS = [
@@ -266,10 +266,19 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
   const [assignedStump, setAssignedStump] = useState<StumpUser | null>(null);
   const [stumpSearch, setStumpSearch] = useState('');
   const [molInfoOpen, setMolInfoOpen] = useState(false);
+  const [maxStepReached, setMaxStepReached] = useState(0);
+  const [completedQuads, setCompletedQuads] = useState<Quad[]>([]);
 
   const step = tabSteps[activeTab];
   const stack = stackForStep(quad, step);
   const stackLabel = STACK_LABEL[stack];
+
+  // Load max step reached and completed quads
+  useEffect(() => {
+    if (!id) return;
+    setMaxStepReached(getQuadMaxStep(id, quad));
+    setCompletedQuads(getCompletedQuads(id));
+  }, [id, quad]);
 
   useEffect(() => {
     if (!stumpOpen && !molInfoOpen) return;
@@ -292,10 +301,13 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
 
   function advance() {
     if (step < TOTAL_STEPS) {
-      bumpQuadMaxStep(id, quad, step + 1);
-      setTabSteps(prev => ({ ...prev, [activeTab]: step + 1 }));
+      const newStep = step + 1;
+      bumpQuadMaxStep(id, quad, newStep);
+      setMaxStepReached(prev => Math.max(prev, newStep));
+      setTabSteps(prev => ({ ...prev, [activeTab]: newStep }));
     } else {
       markQuadCompleted(id, quad);
+      setCompletedQuads(prev => prev.includes(quad) ? prev : [...prev, quad]);
       const next = NEXT_QUAD[quad];
       setActiveQuad(id, next);
       setActiveStep(id, 1);
@@ -499,7 +511,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
 
         <div className="qa-title-row">
           <h1 className="qa-title">{headingLabel}</h1>
-          <div className="qa-step-indicator">
+          <div className={`qa-step-indicator quad-${quad}`}>
             {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(n => (
               <span
                 key={n}
@@ -693,16 +705,25 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                 {(step === TOTAL_STEPS ? OUTER_STACK_CELLS : STACK_CELLS).map(cell => {
                   // Inner stack order: okrs (step 1) → kpis (step 2) → jobs (step 3) → tasks (step 4)
                   const stepOrder: Record<string, number> = { okrs: 1, kpis: 2, jobs: 3, tasks: 4 };
+                  // Outer stack: cell.key maps to quad (okrs=a, kpis=b, jobs=c, tasks=d)
+                  const quadMap: Record<string, Quad> = { okrs: 'a', kpis: 'b', jobs: 'c', tasks: 'd' };
+
                   const cellStep = stepOrder[cell.key] ?? 5;
-                  const isVisible = step >= cellStep;
+                  // Use maxStepReached to determine inner stack visibility
+                  const isInnerVisible = maxStepReached >= cellStep;
                   const isActive = step === cellStep;
 
-                  // For outer stack (step 5), highlight based on quad
+                  // For outer stack (step 5), visibility based on completed quads
+                  const cellQuad = quadMap[cell.key];
+                  const isOuterVisible = completedQuads.includes(cellQuad);
                   const outerActiveKey = QUAD_FINAL[quad];
                   const isOuterActive = step === TOTAL_STEPS && cell.key === outerActiveKey;
 
+                  // Determine final visibility
+                  const isVisible = step === TOTAL_STEPS ? isOuterVisible : isInnerVisible;
+
                   return (
-                    <div key={cell.key} className={`stack-cell ${cell.key}${isVisible || step === TOTAL_STEPS ? ' visible' : ''}${isActive ? ' active' : ''}${isOuterActive ? ' active' : ''}`}>
+                    <div key={cell.key} className={`stack-cell ${cell.key}${isVisible ? ' visible' : ''}${isActive ? ' active' : ''}${isOuterActive ? ' active' : ''}`}>
                       <div className="stack-cell-label">{cell.label}</div>
                       {step !== TOTAL_STEPS && (
                         <div className="stack-pills">
@@ -869,15 +890,15 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                     <div className="mol-detail-value">{tab.objective}</div>
                   </div>
                   <div className="mol-detail-meta">
-                    <div className="mol-detail-chip">
+                    <div className={`mol-detail-chip quad-${quad}`}>
                       <span className="mol-detail-chip-label">Quadrant</span>
                       <span className="mol-detail-chip-value">{QUAD_FULL_TITLE[quad]}</span>
                     </div>
-                    <div className="mol-detail-chip">
+                    <div className={`mol-detail-chip quad-${quad}`}>
                       <span className="mol-detail-chip-label">Stack</span>
                       <span className="mol-detail-chip-value">{step === TOTAL_STEPS ? 'Outer' : 'Inner'}</span>
                     </div>
-                    <div className="mol-detail-chip">
+                    <div className={`mol-detail-chip quad-${quad}`}>
                       <span className="mol-detail-chip-label">Step</span>
                       <span className="mol-detail-chip-value">{step} of {TOTAL_STEPS}</span>
                     </div>
@@ -924,10 +945,21 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                   <div className="mol-detail-card">
                     <div className="mol-detail-card-title">Outer Stack</div>
                     <div className="ms-quad-grid">
-                      <div className={`ms-quad-cell red${quad === 'c' ? ' active' : ''}`}><div className="ms-quad-label">Q·C</div><div className="ms-quad-name">Knowledge</div></div>
-                      <div className={`ms-quad-cell green${quad === 'd' ? ' active' : ''}`}><div className="ms-quad-label">Q·D</div><div className="ms-quad-name">Exchange</div></div>
-                      <div className={`ms-quad-cell gold${quad === 'a' ? ' active' : ''}`}><div className="ms-quad-label">Q·A</div><div className="ms-quad-name">Coordination</div></div>
-                      <div className={`ms-quad-cell blue${quad === 'b' ? ' active' : ''}`}><div className="ms-quad-label">Q·B</div><div className="ms-quad-name">Communication</div></div>
+                      {([
+                        { color: 'red', q: 'c' as Quad, label: 'Q·C', name: 'Knowledge' },
+                        { color: 'green', q: 'd' as Quad, label: 'Q·D', name: 'Exchange' },
+                        { color: 'gold', q: 'a' as Quad, label: 'Q·A', name: 'Coordination' },
+                        { color: 'blue', q: 'b' as Quad, label: 'Q·B', name: 'Communication' },
+                      ]).map(({ color, q, label, name }) => {
+                        const isDone = completedQuads.includes(q);
+                        const isCurrent = quad === q;
+                        return (
+                          <div key={q} className={`ms-quad-cell ${color}${isDone ? ' active' : ''}${isCurrent && !isDone ? ' current' : ''}`}>
+                            <div className="ms-quad-label">{label}</div>
+                            <div className="ms-quad-name">{name}</div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="mol-detail-card">
@@ -935,9 +967,10 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                     <div className="inner-stack-grid">
                       {STACK_CELLS.map(cell => {
                         const stepOrder: Record<string, number> = { okrs: 1, kpis: 2, jobs: 3, tasks: 4 };
-                        const isVisible = step >= stepOrder[cell.key];
+                        const isVisible = maxStepReached >= stepOrder[cell.key];
+                        const isActive = step === stepOrder[cell.key];
                         return (
-                          <div key={cell.key} className={`stack-cell ${cell.key}${isVisible ? ' visible' : ''}`}>
+                          <div key={cell.key} className={`stack-cell ${cell.key}${isVisible ? ' visible' : ''}${isActive ? ' active' : ''}`}>
                             <div className="stack-cell-label">{cell.label}</div>
                           </div>
                         );
