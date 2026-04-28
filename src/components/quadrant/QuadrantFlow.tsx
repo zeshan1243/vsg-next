@@ -64,6 +64,12 @@ const EyeIcon = (
     <circle cx="12" cy="12" r="3" />
   </svg>
 );
+const PencilIcon = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
 
 const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
   { id: 'vendors',    label: 'Vendors',    icon: VendorsIcon    },
@@ -268,6 +274,8 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
   const [molInfoOpen, setMolInfoOpen] = useState(false);
   const [maxStepReached, setMaxStepReached] = useState(0);
   const [completedQuads, setCompletedQuads] = useState<Quad[]>([]);
+  const [editingObjective, setEditingObjective] = useState(false);
+  const [objectiveDraft, setObjectiveDraft] = useState('');
 
   const step = tabSteps[activeTab];
   const stack = stackForStep(quad, step);
@@ -319,6 +327,15 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
   // ─── Mutators ───────────────────────────────────
   function patchTab(fn: (t: TabContent) => TabContent) {
     setTabs(prev => ({ ...prev, [activeTab]: fn(prev[activeTab]) }));
+  }
+  function setObjectiveAllTabs(newObjective: string) {
+    setTabs(prev => {
+      const updated = { ...prev };
+      (Object.keys(updated) as TabId[]).forEach(tid => {
+        updated[tid] = { ...updated[tid], objective: newObjective };
+      });
+      return updated;
+    });
   }
   function patchOkrs(fn: (okrs: Okr[]) => Okr[]) {
     patchTab(t => ({ ...t, okrs: fn(t.okrs) }));
@@ -524,7 +541,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
         </div>
 
         {/* Tabs */}
-        <div className="qa-tabs">
+        <div className={`qa-tabs quad-${quad}`}>
           {TABS.map(t => (
             <button
               key={t.id}
@@ -538,11 +555,64 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
           ))}
         </div>
 
+        {/* My Stump — shown at top on step 1 */}
+        {step === 1 && (
+          <div className="qa-stump-bar">
+            <span className="qa-stump-bar-label">My Stump</span>
+            {assignedStump ? (
+              <div className="qa-stump-bar-user">
+                <div className="qa-stump-bar-av" style={{ background: assignedStump.gradient }}>{assignedStump.initials}</div>
+                <span className="qa-stump-bar-name">{assignedStump.name}</span>
+                <span className="qa-stump-bar-role">{assignedStump.role}</span>
+                <button type="button" className="qa-stump-bar-change" onClick={() => setStumpOpen(true)}>
+                  {PencilIcon}
+                  Change
+                </button>
+              </div>
+            ) : (
+              <button type="button" className="qa-stump-bar-assign" onClick={() => setStumpOpen(true)}>
+                {PlusIcon}
+                Assign Stump
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="qa-layout">
           <div className="qa-main">
             <div className="qa-obj-head">
               <div className="qa-obj-badge">OBJ</div>
-              <div className="qa-obj-title">{tab.objective}</div>
+              {quad === 'a' && step === 1 && editingObjective ? (
+                <input
+                  className="qa-obj-input"
+                  value={objectiveDraft}
+                  onChange={e => setObjectiveDraft(e.target.value)}
+                  onBlur={() => {
+                    setObjectiveAllTabs(objectiveDraft.trim() || tab.objective);
+                    setEditingObjective(false);
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { setObjectiveAllTabs(objectiveDraft.trim() || tab.objective); setEditingObjective(false); }
+                    if (e.key === 'Escape') setEditingObjective(false);
+                  }}
+                  autoFocus
+                />
+              ) : (
+                <div className="qa-obj-title">
+                  {tab.objective}
+                  {quad === 'a' && step === 1 && (
+                    <button
+                      type="button"
+                      className="qa-obj-edit-btn"
+                      onClick={() => { setObjectiveDraft(tab.objective); setEditingObjective(true); }}
+                      title="Edit objective"
+                      aria-label="Edit objective"
+                    >
+                      {PencilIcon}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Step-dependent body */}
@@ -676,102 +746,6 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
             </button>
           </div>
 
-          {/* Right side */}
-          <div className="qa-side">
-            <div className="qa-side-card">
-              <div className="qa-side-card-header">
-                <div className="qa-side-card-title">Molecule Info</div>
-                <button
-                  type="button"
-                  className="qa-side-card-eye"
-                  onClick={() => setMolInfoOpen(true)}
-                  aria-label="View full molecule details"
-                  title="View details"
-                >
-                  {EyeIcon}
-                </button>
-              </div>
-              <div className="qa-info-row"><span className="qa-info-key">Molecule</span><span className="qa-info-val">{mol.name}</span></div>
-              <div className="qa-info-row"><span className="qa-info-key">Quad</span><span className="qa-info-val">{QUAD_FULL_TITLE[quad]}</span></div>
-              <div className="qa-info-row"><span className="qa-info-key">Stack</span><span className="qa-info-val">{step === TOTAL_STEPS ? 'Outer' : 'Inner'}</span></div>
-              <div className="qa-info-row"><span className="qa-info-key">Objective</span><span className="qa-info-val">{headingLabel}</span></div>
-            </div>
-
-            <div className="qa-side-card">
-              <div className="qa-side-card-title">
-                {step === TOTAL_STEPS ? QUAD_OUTER_STACK_LABEL[quad] : QUAD_INNER_STACK_LABEL[quad]}
-              </div>
-              <div className="inner-stack-grid">
-                {(step === TOTAL_STEPS ? OUTER_STACK_CELLS : STACK_CELLS).map(cell => {
-                  // Inner stack order: okrs (step 1) → kpis (step 2) → jobs (step 3) → tasks (step 4)
-                  const stepOrder: Record<string, number> = { okrs: 1, kpis: 2, jobs: 3, tasks: 4 };
-                  // Outer stack: cell.key maps to quad (okrs=a, kpis=b, jobs=c, tasks=d)
-                  const quadMap: Record<string, Quad> = { okrs: 'a', kpis: 'b', jobs: 'c', tasks: 'd' };
-
-                  const cellStep = stepOrder[cell.key] ?? 5;
-                  // Use maxStepReached to determine inner stack visibility
-                  const isInnerVisible = maxStepReached >= cellStep;
-                  const isActive = step === cellStep;
-
-                  // For outer stack (step 5), visibility based on completed quads
-                  const cellQuad = quadMap[cell.key];
-                  const isOuterVisible = completedQuads.includes(cellQuad);
-                  const outerActiveKey = QUAD_FINAL[quad];
-                  const isOuterActive = step === TOTAL_STEPS && cell.key === outerActiveKey;
-
-                  // Determine final visibility
-                  const isVisible = step === TOTAL_STEPS ? isOuterVisible : isInnerVisible;
-
-                  return (
-                    <div key={cell.key} className={`stack-cell ${cell.key}${isVisible ? ' visible' : ''}${isActive ? ' active' : ''}${isOuterActive ? ' active' : ''}`}>
-                      <div className="stack-cell-label">{cell.label}</div>
-                      {step !== TOTAL_STEPS && (
-                        <div className="stack-pills">
-                          {STACK_PILLS.map(p => (
-                            <div key={p} className="stack-pill">{p}</div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {step === 1 && (
-              <div className="qa-side-card">
-                <div className="qa-side-card-title">My Stump</div>
-                {assignedStump ? (
-                  <div className="qa-stump-assigned-row">
-                    <div className="qa-stump-row-av" style={{ background: assignedStump.gradient }}>
-                      {assignedStump.initials}
-                    </div>
-                    <div className="qa-stump-row-info">
-                      <div className="qa-stump-row-name">{assignedStump.name}</div>
-                      <div className="qa-stump-row-meta">{assignedStump.role}</div>
-                    </div>
-                    <button
-                      type="button"
-                      className="qa-stump-row-action"
-                      onClick={() => setStumpOpen(true)}
-                      aria-label="Change Stump"
-                      title="Change"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" className="qa-stump-empty" onClick={() => setStumpOpen(true)}>
-                    <div className="qa-stump-empty-icon">{PlusIcon}</div>
-                    <span className="qa-stump-empty-text">Click to assign Stump</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 

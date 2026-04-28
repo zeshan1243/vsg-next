@@ -61,7 +61,6 @@ const LEADS = [
 export default function NewMoleculePage() {
   const router = useRouter();
   const [name, setName] = useState('');
-  const [vision, setVision] = useState('');
   const [objective, setObjective] = useState('');
   const [date, setDate] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
@@ -70,7 +69,7 @@ export default function NewMoleculePage() {
   const [submitting, setSubmitting] = useState(false);
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
 
-  const missionFilled = !!(name.trim() && vision.trim() && objective.trim());
+  const missionFilled = !!(name.trim() && objective.trim());
   const canSubmit = missionFilled && !submitting;
 
   const stepStatus = (s: 1 | 2 | 3): 'done' | 'active' | 'future' =>
@@ -129,7 +128,7 @@ export default function NewMoleculePage() {
                     </div>
                   </div>
                   {s1 === 'active' && (
-                    <>
+                    <div className="stepper-active-body">
                       <div className="stepper-body">
                         <div className="fc-group">
                           <label className="fc-label" htmlFor="name">
@@ -144,20 +143,6 @@ export default function NewMoleculePage() {
                             onChange={e => setName(e.target.value)}
                           />
                           <div className="fc-hint">Choose a clear, descriptive name for your project.</div>
-                        </div>
-
-                        <div className="fc-group">
-                          <label className="fc-label" htmlFor="vision">
-                            Vision Statement <span className="req">*</span>
-                          </label>
-                          <textarea
-                            id="vision"
-                            className="fc-textarea"
-                            placeholder="Describe the overarching vision for this project. What does success look like?"
-                            value={vision}
-                            onChange={e => setVision(e.target.value)}
-                          />
-                          <div className="fc-hint">The vision drives all objectives, KPIs, jobs and tasks within this Molecule.</div>
                         </div>
 
                         <div className="fc-group">
@@ -210,7 +195,7 @@ export default function NewMoleculePage() {
                           Continue
                         </button>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
@@ -234,7 +219,7 @@ export default function NewMoleculePage() {
                     </div>
                   </div>
                   {s2 === 'active' && (
-                    <>
+                    <div className="stepper-active-body">
                       <div className="stepper-body">
                         <div className="fc-group">
                           <div className="tmpl-grid">
@@ -287,7 +272,7 @@ export default function NewMoleculePage() {
                           Continue
                         </button>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
@@ -305,7 +290,7 @@ export default function NewMoleculePage() {
                     </div>
                   </div>
                   {s3 === 'active' && (
-                    <>
+                    <div className="stepper-active-body">
                       <div className="stepper-body">
                         <div className="fc-group">
                           <select
@@ -341,7 +326,7 @@ export default function NewMoleculePage() {
                           {submitting ? 'Creating…' : 'Create Molecule'}
                         </button>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
@@ -356,7 +341,7 @@ export default function NewMoleculePage() {
             {/* Molecule Structure — roles */}
             <div className="info-card">
               <div className="info-card-header">
-                <div className="info-card-title">Molecule Structure</div>
+                <div className="info-card-title">Roles, Hierarchy &amp; Permissions</div>
               </div>
               <div className="info-card-body" style={{ padding: '12px 16px' }}>
                 <div className="ms-role-row">
@@ -397,7 +382,7 @@ export default function NewMoleculePage() {
             {/* Molecule Structure — Outer Stack */}
             <div className="info-card">
               <div className="info-card-header">
-                <div className="info-card-title">Molecule Structure <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>( Outer Stack )</span></div>
+                <div className="info-card-title">Molecule Anatomy</div>
               </div>
               <div className="info-card-body" style={{ padding: '14px 16px' }}>
                 <div className="ms-quad-grid">
@@ -417,29 +402,6 @@ export default function NewMoleculePage() {
                     <div className="ms-quad-label">Q·B</div>
                     <div className="ms-quad-name">Communication</div>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Molecule Structure — Inner Stack */}
-            <div className="info-card">
-              <div className="info-card-header">
-                <div className="info-card-title">Molecule Structure <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '12px' }}>( Inner Stack )</span></div>
-              </div>
-              <div className="info-card-body" style={{ padding: '14px 16px' }}>
-                <div className="inner-stack-grid">
-                  {(['jobs', 'tasks', 'okrs', 'kpis'] as const).map(key => (
-                    <div key={key} className={`stack-cell ${key}`}>
-                      <div className="stack-cell-label">
-                        {key === 'jobs' ? 'Jobs' : key === 'tasks' ? 'Tasks' : key === 'okrs' ? 'OKRs' : 'KPIs'}
-                      </div>
-                      <div className="stack-pills">
-                        {['Locations', 'Attendance', 'Vendors', 'Partners'].map(p => (
-                          <div key={p} className="stack-pill">{p}</div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
