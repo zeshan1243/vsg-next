@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { getMolecule } from '@/lib/molecules';
+import { useRole } from '@/lib/useRole';
 
 type Status = 'done' | 'progress';
 type TaskState = 'done' | 'progress' | 'todo';
@@ -265,6 +266,7 @@ export default function FinalizedViewPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
+  const { roleLabel } = useRole();
   const [open, setOpen] = useState<Set<string>>(DEFAULT_OPEN);
 
   const toggle = (key: string) =>
@@ -293,7 +295,7 @@ export default function FinalizedViewPage() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            Creator
+            {roleLabel}
           </span>
           <button type="button" className="btn-sm">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -555,8 +555,8 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
           ))}
         </div>
 
-        {/* My Stump — shown at top on step 1 */}
-        {step === 1 && (
+        {/* My Stump — show on all steps if assigned, only step 1 if not */}
+        {(assignedStump || step === 1) && (
           <div className="qa-stump-bar">
             <span className="qa-stump-bar-label">My Stump</span>
             {assignedStump ? (

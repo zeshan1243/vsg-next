@@ -57,3 +57,4 @@ yarn-error.log*
 
 # local claude / ai assistant state
 .claude/
+requests.txt

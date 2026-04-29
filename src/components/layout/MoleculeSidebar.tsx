@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { getMolecule } from '@/lib/molecules';
 import { getCompletedQuads, getQuadMaxStep, isQuadUnlocked, TOTAL_STEPS, type Quad } from '@/lib/progress';
 
-type ViewKey = 'overview' | 'members' | 'requests' | 'finalized';
+type ViewKey = 'overview' | 'members' | 'decisions' | 'requests' | 'finalized';
 
 interface ViewItem {
   key: ViewKey;
@@ -33,6 +33,13 @@ const MembersIcon = (
     <circle cx="9" cy="7" r="4" />
     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+const DecisionsIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 );
 
@@ -119,7 +126,13 @@ export default function MoleculeSidebar() {
       badge: { text: `${mol.sidebar.membersAssigned}/${mol.sidebar.membersTotal}`, bg: 'rgba(59,184,127,.1)', fg: 'var(--success)' },
     },
     {
-      key: 'requests', slug: '/requests', label: 'Requests', sub: 'Manage all requests', cls: 'nv-req', icon: RequestsIcon,
+      key: 'decisions', slug: '/decisions', label: 'Decisions', sub: 'Phase validations', cls: 'nv-req', icon: DecisionsIcon,
+      badge: mol.sidebar.pendingRequests > 0
+        ? { text: String(mol.sidebar.pendingRequests), bg: 'rgba(139,92,246,.1)', fg: '#8B5CF6' }
+        : undefined,
+    },
+    {
+      key: 'requests', slug: '/requests', label: 'Requests', sub: 'Communication & ARFDs', cls: 'nv-req', icon: RequestsIcon,
       badge: mol.sidebar.pendingRequests > 0
         ? { text: String(mol.sidebar.pendingRequests), bg: 'var(--orange-pale)', fg: 'var(--orange)' }
         : undefined,

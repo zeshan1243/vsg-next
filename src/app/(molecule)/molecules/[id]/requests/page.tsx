@@ -4,13 +4,14 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { getMolecule } from '@/lib/molecules';
+import { useRole } from '@/lib/useRole';
 
 type ReqStatus = 'pending' | 'approved' | 'rejected' | 'review';
 type ReqType =
   | 'resource' | 'budget' | 'access' | 'leave' | 'equipment'
   | 'update' | 'meeting' | 'info' | 'feedback' | 'broadcast';
 type Priority = 'High' | 'Medium' | 'Low';
-type ReqCategory = 'approval' | 'communication';
+type ReqCategory = 'arfd' | 'communication';
 
 interface Person {
   name: string;
@@ -57,7 +58,7 @@ const ORANGE_GRAD = 'linear-gradient(135deg,var(--quad-c),#F87171)';
 
 const REQUESTS: Request[] = [
   {
-    id: 'REQ-2026-001', title: 'Additional Development Resources', category: 'approval',
+    id: 'REQ-2026-001', title: 'Additional Development Resources', category: 'arfd',
     by:  { name: 'John Griffin', initials: 'JG', gradient: GOLD_GRAD, role: 'Engineering Lead' },
     for: { name: 'John Griffin', initials: 'JG', gradient: GOLD_GRAD, role: 'Engineering Lead' },
     type: 'resource', typeLabel: 'Resource Request',
@@ -66,7 +67,7 @@ const REQUESTS: Request[] = [
     department: 'Engineering', budget: '$45,000',
   },
   {
-    id: 'REQ-2026-002', title: 'Marketing Budget Increase', category: 'approval',
+    id: 'REQ-2026-002', title: 'Marketing Budget Increase', category: 'arfd',
     by:  { name: 'Sarah Mitchell', initials: 'SM', gradient: CYAN_GRAD, role: 'Marketing Manager' },
     for: { name: 'Sarah Mitchell', initials: 'SM', gradient: CYAN_GRAD, role: 'Marketing Manager' },
     type: 'budget', typeLabel: 'Budget Request',
@@ -75,7 +76,7 @@ const REQUESTS: Request[] = [
     department: 'Marketing', budget: '$30,000',
   },
   {
-    id: 'REQ-2026-003', title: 'System Admin Access Request', category: 'approval',
+    id: 'REQ-2026-003', title: 'System Admin Access Request', category: 'arfd',
     by:  { name: 'Mike Chan', initials: 'MC', gradient: GREEN_GRAD, role: 'DevOps Engineer' },
     for: { name: 'Mike Chan', initials: 'MC', gradient: GREEN_GRAD, role: 'DevOps Engineer' },
     type: 'access', typeLabel: 'Access Request',
@@ -84,7 +85,7 @@ const REQUESTS: Request[] = [
     department: 'DevOps', budget: 'N/A',
   },
   {
-    id: 'REQ-2026-004', title: 'Annual Leave — Holiday Season', category: 'approval',
+    id: 'REQ-2026-004', title: 'Annual Leave — Holiday Season', category: 'arfd',
     by:  { name: 'Kelly Davis', initials: 'KD', gradient: PURPLE_GRAD, role: 'Project Coordinator' },
     for: { name: 'Emily Davis', initials: 'ED', gradient: PURPLE_GRAD, role: 'Event Planner' },
     type: 'leave', typeLabel: 'Leave Request',
@@ -93,7 +94,7 @@ const REQUESTS: Request[] = [
     department: 'Operations', budget: 'N/A',
   },
   {
-    id: 'REQ-2026-005', title: 'New MacBook Pro for Design Team', category: 'approval',
+    id: 'REQ-2026-005', title: 'New MacBook Pro for Design Team', category: 'arfd',
     by:  { name: 'Alex Wilson', initials: 'AW', gradient: GOLD_GRAD, role: 'Design Lead' },
     for: { name: 'Alex Wilson', initials: 'AW', gradient: GOLD_GRAD, role: 'Design Lead' },
     type: 'equipment', typeLabel: 'Equipment Request',
@@ -102,7 +103,7 @@ const REQUESTS: Request[] = [
     department: 'Design', budget: '$10,500',
   },
   {
-    id: 'REQ-2026-006', title: 'Conference Room Booking System', category: 'approval',
+    id: 'REQ-2026-006', title: 'Conference Room Booking System', category: 'arfd',
     by:  { name: 'Lisa Brown', initials: 'LB', gradient: CYAN_GRAD, role: 'Operations Analyst' },
     for: { name: 'Lisa Brown', initials: 'LB', gradient: CYAN_GRAD, role: 'Operations Analyst' },
     type: 'resource', typeLabel: 'Resource Request',
@@ -111,7 +112,7 @@ const REQUESTS: Request[] = [
     department: 'Operations', budget: '$8,500',
   },
   {
-    id: 'REQ-2026-007', title: 'Q1 Training Budget', category: 'approval',
+    id: 'REQ-2026-007', title: 'Q1 Training Budget', category: 'arfd',
     by:  { name: 'David Lee', initials: 'DL', gradient: GREEN_GRAD, role: 'HR Manager' },
     for: { name: 'David Lee', initials: 'DL', gradient: GREEN_GRAD, role: 'HR Manager' },
     type: 'budget', typeLabel: 'Budget Request',
@@ -120,7 +121,7 @@ const REQUESTS: Request[] = [
     department: 'Human Resources', budget: '$18,000',
   },
   {
-    id: 'REQ-2026-008', title: 'VPN Access for Remote Team', category: 'approval',
+    id: 'REQ-2026-008', title: 'VPN Access for Remote Team', category: 'arfd',
     by:  { name: 'Rachel Green', initials: 'RG', gradient: ORANGE_GRAD, role: 'Remote Ops Lead' },
     for: { name: 'Rachel Green', initials: 'RG', gradient: ORANGE_GRAD, role: 'Remote Ops Lead' },
     type: 'access', typeLabel: 'Access Request',
@@ -129,7 +130,7 @@ const REQUESTS: Request[] = [
     department: 'IT Security', budget: '$2,400',
   },
   {
-    id: 'REQ-2026-009', title: 'Standing Desks for Engineering', category: 'approval',
+    id: 'REQ-2026-009', title: 'Standing Desks for Engineering', category: 'arfd',
     by:  { name: 'Tom Harris', initials: 'TH', gradient: PURPLE_GRAD, role: 'Engineering Manager' },
     for: { name: 'Tom Harris', initials: 'TH', gradient: PURPLE_GRAD, role: 'Engineering Manager' },
     type: 'equipment', typeLabel: 'Equipment Request',
@@ -138,7 +139,7 @@ const REQUESTS: Request[] = [
     department: 'Engineering', budget: '$6,400',
   },
   {
-    id: 'REQ-2026-010', title: 'Parental Leave Extension', category: 'approval',
+    id: 'REQ-2026-010', title: 'Parental Leave Extension', category: 'arfd',
     by:  { name: 'Nina Patel', initials: 'NP', gradient: CYAN_GRAD, role: 'Senior Designer' },
     for: { name: 'Nina Patel', initials: 'NP', gradient: CYAN_GRAD, role: 'Senior Designer' },
     type: 'leave', typeLabel: 'Leave Request',
@@ -242,8 +243,9 @@ export default function RequestsPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
+  const { roleLabel } = useRole();
 
-  const [activeTab, setActiveTab] = useState<ReqCategory>('approval');
+  const [activeTab, setActiveTab] = useState<ReqCategory>('communication');
   const [statusFilter, setStatusFilter] = useState<'all' | ReqStatus>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | ReqType>('all');
   const [search, setSearch] = useState('');
@@ -257,7 +259,7 @@ export default function RequestsPage() {
   );
 
   const tabCounts = useMemo(() => ({
-    approval:      REQUESTS.filter(r => r.category === 'approval').length,
+    arfd:          REQUESTS.filter(r => r.category === 'arfd').length,
     communication: REQUESTS.filter(r => r.category === 'communication').length,
   }), []);
 
@@ -283,7 +285,7 @@ export default function RequestsPage() {
     });
   }, [tabBase, statusFilter, typeFilter, search]);
 
-  const relevantTypes = activeTab === 'approval' ? APPROVAL_TYPES : COMM_TYPES;
+  const relevantTypes = activeTab === 'arfd' ? APPROVAL_TYPES : COMM_TYPES;
 
   function handleTabChange(tab: ReqCategory) {
     setActiveTab(tab);
@@ -310,7 +312,7 @@ export default function RequestsPage() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            Creator
+            {roleLabel}
           </span>
         </div>
       </div>
@@ -323,20 +325,6 @@ export default function RequestsPage() {
           <button
             type="button"
             role="tab"
-            aria-selected={activeTab === 'approval'}
-            className={`req-tab${activeTab === 'approval' ? ' active' : ''}`}
-            onClick={() => handleTabChange('approval')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 11 12 14 22 4" />
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-            </svg>
-            Approval Requests
-            <span className="req-tab-count">{tabCounts.approval}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={activeTab === 'communication'}
             className={`req-tab${activeTab === 'communication' ? ' active' : ''}`}
             onClick={() => handleTabChange('communication')}
@@ -344,8 +332,22 @@ export default function RequestsPage() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-            Communication Requests
+            Communication
             <span className="req-tab-count">{tabCounts.communication}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'arfd'}
+            className={`req-tab${activeTab === 'arfd' ? ' active' : ''}`}
+            onClick={() => handleTabChange('arfd')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 11 12 14 22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            ARFDs
+            <span className="req-tab-count">{tabCounts.arfd}</span>
           </button>
         </div>
 
@@ -724,12 +726,9 @@ export default function RequestsPage() {
               </div>
               <div className="fc-group">
                 <label className="fc-label">Request Type</label>
-                <select className="fc-select" defaultValue="resource">
-                  <option value="resource">Resource Request</option>
-                  <option value="budget">Budget Request</option>
-                  <option value="access">Access Request</option>
-                  <option value="leave">Leave Request</option>
-                  <option value="equipment">Equipment Request</option>
+                <select className="fc-select" defaultValue="arfd">
+                  <option value="arfd">ARFD</option>
+                  <option value="communication">Communication</option>
                 </select>
               </div>
               <div className="fc-group">

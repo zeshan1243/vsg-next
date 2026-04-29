@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { MOLECULES, type Molecule, type MoleculeState } from '@/lib/molecules';
+import { useRole } from '@/lib/useRole';
 
 type FilterKey = 'all' | MoleculeState;
 
@@ -54,23 +55,6 @@ const CheckIcon = (
   </svg>
 );
 
-const KebabIcon = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-    <circle cx="12" cy="5"  r="2" />
-    <circle cx="12" cy="12" r="2" />
-    <circle cx="12" cy="19" r="2" />
-  </svg>
-);
-const WorkfieldsIcon = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" />
-  </svg>
-);
-const LeadIcon = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-  </svg>
-);
 
 const AVAILABLE_LEADS = [
   'M. Reeves', 'A. Patel', 'L. Walsh', 'N. Brooks',
@@ -98,6 +82,7 @@ interface MoleculeExtras {
 
 export default function MoleculesPage() {
   const router = useRouter();
+  const { canCreateMolecule } = useRole();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
   const [sort, setSort] = useState<SortKey>('default');
@@ -111,7 +96,6 @@ export default function MoleculesPage() {
     }])),
   );
 
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [workfieldsTarget, setWorkfieldsTarget] = useState<Molecule | null>(null);
   const [editingWfKey, setEditingWfKey] = useState<WorkfieldKey | null>(null);
   const [leadTarget, setLeadTarget] = useState<Molecule | null>(null);
@@ -151,41 +135,22 @@ export default function MoleculesPage() {
 
   const anyModalOpen = !!(workfieldsTarget || leadTarget);
 
-  // Close modals / dropdown on Escape
+  // Close modals on Escape
   useEffect(() => {
-    if (!anyModalOpen && menuOpenId === null) return;
+    if (!anyModalOpen) return;
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
       setWorkfieldsTarget(null);
       setEditingWfKey(null);
       setLeadTarget(null);
-      setMenuOpenId(null);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [anyModalOpen, menuOpenId]);
+  }, [anyModalOpen]);
 
-  // Close kebab dropdown on any outside click
-  useEffect(() => {
-    if (menuOpenId === null) return;
-    function onClick() { setMenuOpenId(null); }
-    window.addEventListener('click', onClick);
-    return () => window.removeEventListener('click', onClick);
-  }, [menuOpenId]);
-
-  function openWorkfields(m: Molecule) {
-    setWorkfieldsTarget(m);
-    setEditingWfKey(null);
-    setMenuOpenId(null);
-  }
   function closeWorkfields() {
     setWorkfieldsTarget(null);
     setEditingWfKey(null);
-  }
-  function openLead(m: Molecule) {
-    setLeadTarget(m);
-    setLeadDraft(m.leadName);
-    setMenuOpenId(null);
   }
 
   function updateWorkfield(molId: string, key: WorkfieldKey, value: string) {
@@ -213,14 +178,16 @@ export default function MoleculesPage() {
             {molecules.length} molecules across your workspace
           </div>
         </div>
-        <div className="topbar-actions">
-          <button className="btn-primary-sm" type="button" onClick={() => router.push('/molecules/new')}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New Molecule
-          </button>
-        </div>
+        {canCreateMolecule && (
+          <div className="topbar-actions">
+            <button className="btn-primary-sm" type="button" onClick={() => router.push('/molecules/new')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              New Molecule
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Content ── */}
@@ -277,38 +244,6 @@ export default function MoleculesPage() {
                 onClick={() => router.push(`/molecules/${m.id}`)}
               >
                 <div className={`mol-card-top ${m.phaseCls}`} />
-                <div className="mol-card-actions">
-                  <button
-                    type="button"
-                    className={`mol-card-act${menuOpenId === m.id ? ' open' : ''}`}
-                    onClick={e => {
-                      e.stopPropagation();
-                      setMenuOpenId(prev => prev === m.id ? null : m.id);
-                    }}
-                    aria-label={`Actions for ${m.name}`}
-                    aria-haspopup="menu"
-                    aria-expanded={menuOpenId === m.id}
-                    title="Actions"
-                  >
-                    {KebabIcon}
-                  </button>
-                </div>
-                {menuOpenId === m.id && (
-                  <div
-                    className="mol-card-menu"
-                    role="menu"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <button type="button" role="menuitem" className="mol-card-menu-item" onClick={() => openWorkfields(m)}>
-                      {WorkfieldsIcon}
-                      Edit Workfields
-                    </button>
-                    <button type="button" role="menuitem" className="mol-card-menu-item" onClick={() => openLead(m)}>
-                      {LeadIcon}
-                      Change Lead
-                    </button>
-                  </div>
-                )}
                 <div className="mol-card-body">
                   <div className={`mol-card-phase ${m.phaseCls}`}>{m.phaseLabel}</div>
                   <div className="mol-card-name">{m.name}</div>

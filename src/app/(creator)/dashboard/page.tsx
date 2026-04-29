@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { MOLECULES, MOLECULE_STATE_CONFIG, getMoleculeStateCounts, type MoleculeState } from '@/lib/molecules';
+import { useRole } from '@/lib/useRole';
 
 const STATE_ORDER: MoleculeState[] = ['draft', 'active', 'paused', 'completed', 'archived'];
 
@@ -127,6 +128,7 @@ type ChartTab = 'pipeline' | 'members' | 'invitations';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { roleLabel, canCreateMolecule } = useRole();
   const [today, setToday] = useState('');
   const [chartTab, setChartTab] = useState<ChartTab>('pipeline');
   const [attentionFilter, setAttentionFilter] = useState<'all' | Priority>('all');
@@ -153,7 +155,7 @@ export default function DashboardPage() {
       {/* Topbar */}
       <div className="topbar">
         <div className="topbar-left">
-          <div className="page-title">Creator Dashboard</div>
+          <div className="page-title">{roleLabel} Dashboard</div>
           <div className="page-subtitle">
             {today ? `${today} · Welcome back, Sarah` : 'Welcome back, Sarah'}
           </div>
@@ -166,12 +168,14 @@ export default function DashboardPage() {
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
           </div>
-          <button className="btn-primary-sm" type="button" onClick={() => router.push('/molecules/new')}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New Molecule
-          </button>
+          {canCreateMolecule && (
+            <button className="btn-primary-sm" type="button" onClick={() => router.push('/molecules/new')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              New Molecule
+            </button>
+          )}
         </div>
       </div>
 
@@ -368,21 +372,19 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="dash-team-list">
-                {ACTIVE_USERS.map(user => (
+                {ACTIVE_USERS.filter(user => user.online).map(user => (
                   <div key={user.id} className="dash-team-item">
                     <div className="dash-team-av-wrap">
                       <div className="dash-team-av" style={{ background: user.gradient }}>
                         {user.initials}
                       </div>
-                      <div className={`dash-team-online-dot ${user.online ? 'on' : 'off'}`} />
+                      <div className="dash-team-online-dot on" />
                     </div>
                     <div className="dash-team-meta">
                       <div className="dash-team-name">{user.name}</div>
                       <div className="dash-team-role">{user.role}</div>
                     </div>
-                    <div className={`dash-team-status${user.online ? ' on' : ''}`}>
-                      {user.online ? 'Online' : 'Offline'}
-                    </div>
+                    <div className="dash-team-status on">Online</div>
                   </div>
                 ))}
               </div>

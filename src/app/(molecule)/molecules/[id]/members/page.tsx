@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getMolecule } from '@/lib/molecules';
+
+type ActionModal = 'resend' | 'revoke' | 'remove' | 'assign-stump' | null;
 
 type MemberStatus = 'active' | 'pending' | 'expired' | 'revoked';
 type MemberRole   = 'creator' | 'lead' | 'stump' | 'sub-stump';
@@ -86,6 +88,11 @@ export default function MembersPage() {
   const [page,         setPage]         = useState(1);
   const [inviteOpen,   setInviteOpen]   = useState(false);
   const [invite,       setInvite]       = useState<InviteForm>(EMPTY_INVITE);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [actionModal,  setActionModal]  = useState<ActionModal>(null);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [assignQuad,   setAssignQuad]   = useState<QuadKey>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!inviteOpen) return;
@@ -93,6 +100,26 @@ export default function MembersPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [inviteOpen]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!openDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openDropdown]);
+
+  // Close modal on Escape
+  useEffect(() => {
+    if (!actionModal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeActionModal(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [actionModal]);
 
   const inviteValid = invite.firstName.trim() !== '' && invite.lastName.trim() !== '' && invite.email.trim() !== '';
 
@@ -126,6 +153,53 @@ export default function MembersPage() {
   }
   function removeMember(memberId: string) {
     setMembers(prev => prev.filter(m => m.id !== memberId));
+  }
+
+  function assignStump(memberId: string, quad: QuadKey) {
+    setMembers(prev => prev.map(m => m.id === memberId ? { ...m, quad } : m));
+  }
+
+  function openActionModal(member: Member, modal: ActionModal) {
+    setSelectedMember(member);
+    setActionModal(modal);
+    setOpenDropdown(null);
+    if (modal === 'assign-stump') {
+      setAssignQuad(member.quad);
+    }
+  }
+
+  function closeActionModal() {
+    setActionModal(null);
+    setSelectedMember(null);
+    setAssignQuad(null);
+  }
+
+  function confirmResend() {
+    if (selectedMember) {
+      resendInvitation(selectedMember.id);
+      closeActionModal();
+    }
+  }
+
+  function confirmRevoke() {
+    if (selectedMember) {
+      revokeInvitation(selectedMember.id);
+      closeActionModal();
+    }
+  }
+
+  function confirmRemove() {
+    if (selectedMember) {
+      removeMember(selectedMember.id);
+      closeActionModal();
+    }
+  }
+
+  function confirmAssignStump() {
+    if (selectedMember && assignQuad) {
+      assignStump(selectedMember.id, assignQuad);
+      closeActionModal();
+    }
   }
 
   const isFiltered = search.trim() !== '' || roleFilter !== 'all' || statusFilter !== 'all';
@@ -383,26 +457,59 @@ export default function MembersPage() {
                     {/* Actions */}
                     <td>
                       <div className="um-actions">
-                        {m.status === 'active' && m.role !== 'creator' && (
-                          <button type="button" className="um-act um-act-danger" onClick={() => removeMember(m.id)}>Remove</button>
-                        )}
-                        {m.status === 'pending' && (
-                          <>
-                            <button type="button" className="um-act" onClick={() => resendInvitation(m.id)}>Resend</button>
-                            <button type="button" className="um-act um-act-danger" onClick={() => revokeInvitation(m.id)}>Revoke</button>
-                          </>
-                        )}
-                        {m.status === 'expired' && (
-                          <>
-                            <button type="button" className="um-act um-act-primary" onClick={() => resendInvitation(m.id)}>Resend</button>
-                            <button type="button" className="um-act um-act-muted" onClick={() => removeMember(m.id)}>Remove</button>
-                          </>
-                        )}
-                        {m.status === 'revoked' && (
-                          <button type="button" className="um-act um-act-muted" onClick={() => removeMember(m.id)}>Remove</button>
-                        )}
-                        {m.status === 'active' && m.role === 'creator' && (
+                        {m.role === 'creator' ? (
                           <span className="um-act-owner">Owner</span>
+                        ) : (
+                          <div className="um-dropdown-wrap" ref={openDropdown === m.id ? dropdownRef : null}>
+                            <button
+                              type="button"
+                              className="um-dropdown-trigger"
+                              onClick={() => setOpenDropdown(openDropdown === m.id ? null : m.id)}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
+                              </svg>
+                            </button>
+                            {openDropdown === m.id && (
+                              <div className="um-dropdown">
+                                {(m.status === 'pending' || m.status === 'expired') && (
+                                  <button type="button" className="um-dropdown-item" onClick={() => openActionModal(m, 'resend')}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                    </svg>
+                                    Resend Invitation
+                                  </button>
+                                )}
+                                {m.status === 'pending' && (
+                                  <button type="button" className="um-dropdown-item um-dropdown-item--danger" onClick={() => openActionModal(m, 'revoke')}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+                                    </svg>
+                                    Revoke Invitation
+                                  </button>
+                                )}
+                                {(m.status === 'active' || m.status === 'expired' || m.status === 'revoked') && (
+                                  <button type="button" className="um-dropdown-item um-dropdown-item--danger" onClick={() => openActionModal(m, 'remove')}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                    </svg>
+                                    Remove User
+                                  </button>
+                                )}
+                                {m.status === 'active' && (m.role === 'stump' || m.role === 'sub-stump') && (
+                                  <>
+                                    <div className="um-dropdown-divider" />
+                                    <button type="button" className="um-dropdown-item" onClick={() => openActionModal(m, 'assign-stump')}>
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="12" y1="3" x2="12" y2="21" /><line x1="3" y1="12" x2="21" y2="12" />
+                                      </svg>
+                                      {m.quad && m.quad !== 'all' ? 'Reassign Stump' : 'Assign Stump'}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </td>
@@ -413,44 +520,43 @@ export default function MembersPage() {
           </div>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="um-pagination">
+          <div className="pagination">
+            <div className="page-info">Showing <strong>{paginated.length}</strong> of <strong>{filtered.length}</strong> users</div>
+            <div className="page-btns">
               <button
                 type="button"
-                className="um-page-btn"
+                className="page-btn nav-arrow"
+                title="Previous"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6" />
                 </svg>
-                Prev
               </button>
-              <div className="um-page-nums">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                  <button
-                    key={n}
-                    type="button"
-                    className={`um-page-num${page === n ? ' active' : ''}`}
-                    onClick={() => setPage(n)}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`page-btn${page === n ? ' active' : ''}`}
+                  onClick={() => setPage(n)}
+                >
+                  {n}
+                </button>
+              ))}
               <button
                 type="button"
-                className="um-page-btn"
+                className="page-btn nav-arrow"
+                title="Next"
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
               >
-                Next
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
               </button>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -503,6 +609,188 @@ export default function MembersPage() {
               <button type="button" className="fc-btn-secondary" onClick={() => setInviteOpen(false)}>Cancel</button>
               <button type="button" className="fc-btn-primary" onClick={submitInvite} disabled={!inviteValid}>
                 Send Invite
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Resend Invitation Modal ── */}
+      {actionModal === 'resend' && selectedMember && (
+        <div className="ov-modal-overlay" onClick={closeActionModal}>
+          <div className="ov-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="ov-modal-header">
+              <div className="ov-modal-eyebrow">Resend Invitation</div>
+              <button type="button" className="ov-modal-close" onClick={closeActionModal} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ov-modal-body">
+              <div className="um-modal-user">
+                <div className="um-avatar" style={{ background: selectedMember.gradient }}>{selectedMember.initials}</div>
+                <div>
+                  <div className="um-modal-user-name">{selectedMember.name}</div>
+                  <div className="um-modal-user-email">{selectedMember.email}</div>
+                </div>
+              </div>
+              <p className="um-modal-text">
+                Are you sure you want to resend the invitation to <strong>{selectedMember.name}</strong>?
+                A new invitation email will be sent to their email address.
+              </p>
+            </div>
+            <div className="ov-modal-foot">
+              <button type="button" className="fc-btn-secondary" onClick={closeActionModal}>Cancel</button>
+              <button type="button" className="fc-btn-primary" onClick={confirmResend}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+                Resend Invitation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Revoke Invitation Modal ── */}
+      {actionModal === 'revoke' && selectedMember && (
+        <div className="ov-modal-overlay" onClick={closeActionModal}>
+          <div className="ov-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="ov-modal-header">
+              <div className="ov-modal-eyebrow">Revoke Invitation</div>
+              <button type="button" className="ov-modal-close" onClick={closeActionModal} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ov-modal-body">
+              <div className="um-modal-user">
+                <div className="um-avatar" style={{ background: selectedMember.gradient }}>{selectedMember.initials}</div>
+                <div>
+                  <div className="um-modal-user-name">{selectedMember.name}</div>
+                  <div className="um-modal-user-email">{selectedMember.email}</div>
+                </div>
+              </div>
+              <p className="um-modal-text um-modal-text--warning">
+                Are you sure you want to revoke the invitation for <strong>{selectedMember.name}</strong>?
+                They will no longer be able to join this molecule using the current invitation link.
+              </p>
+            </div>
+            <div className="ov-modal-foot">
+              <button type="button" className="fc-btn-secondary" onClick={closeActionModal}>Cancel</button>
+              <button type="button" className="fc-btn-danger" onClick={confirmRevoke}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+                Revoke Invitation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Remove User Modal ── */}
+      {actionModal === 'remove' && selectedMember && (
+        <div className="ov-modal-overlay" onClick={closeActionModal}>
+          <div className="ov-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="ov-modal-header">
+              <div className="ov-modal-eyebrow">Remove User</div>
+              <button type="button" className="ov-modal-close" onClick={closeActionModal} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ov-modal-body">
+              <div className="um-modal-user">
+                <div className="um-avatar" style={{ background: selectedMember.gradient }}>{selectedMember.initials}</div>
+                <div>
+                  <div className="um-modal-user-name">{selectedMember.name}</div>
+                  <div className="um-modal-user-email">{selectedMember.email}</div>
+                </div>
+              </div>
+              <p className="um-modal-text um-modal-text--warning">
+                Are you sure you want to remove <strong>{selectedMember.name}</strong> from this molecule?
+                They will lose access to all molecule resources and their role will be revoked.
+              </p>
+            </div>
+            <div className="ov-modal-foot">
+              <button type="button" className="fc-btn-secondary" onClick={closeActionModal}>Cancel</button>
+              <button type="button" className="fc-btn-danger" onClick={confirmRemove}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Remove User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Assign Stump Modal ── */}
+      {actionModal === 'assign-stump' && selectedMember && (
+        <div className="ov-modal-overlay" onClick={closeActionModal}>
+          <div className="ov-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="ov-modal-header">
+              <div className="ov-modal-eyebrow">
+                {selectedMember.quad && selectedMember.quad !== 'all' ? 'Reassign Stump' : 'Assign Stump'}
+              </div>
+              <button type="button" className="ov-modal-close" onClick={closeActionModal} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ov-modal-body">
+              <div className="um-modal-user">
+                <div className="um-avatar" style={{ background: selectedMember.gradient }}>{selectedMember.initials}</div>
+                <div>
+                  <div className="um-modal-user-name">{selectedMember.name}</div>
+                  <div className="um-modal-user-email">{selectedMember.email}</div>
+                  <div className="um-modal-user-role">
+                    <span className={`um-role-badge r-${selectedMember.role}`}>{ROLE_LABELS[selectedMember.role]}</span>
+                    {selectedMember.quad && selectedMember.quad !== 'all' && (
+                      <span className={`um-quad-badge q-${selectedMember.quad}`}>
+                        Currently: {quadLabel(selectedMember.quad)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="fc-group" style={{ marginTop: '20px' }}>
+                <label className="fc-label">Select Quadrant</label>
+                <div className="um-quad-selector">
+                  {(['A', 'B', 'C', 'D'] as const).map(q => (
+                    <button
+                      key={q}
+                      type="button"
+                      className={`um-quad-option q-${q}${assignQuad === q ? ' active' : ''}${selectedMember.quad === q ? ' current' : ''}`}
+                      onClick={() => setAssignQuad(q)}
+                    >
+                      <span className="um-quad-option-letter">Q·{q}</span>
+                      <span className="um-quad-option-name">
+                        {q === 'A' && 'Strategy'}
+                        {q === 'B' && 'Operations'}
+                        {q === 'C' && 'Marketing'}
+                        {q === 'D' && 'Finance'}
+                      </span>
+                      {selectedMember.quad === q && (
+                        <span className="um-quad-option-current">Current</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="ov-modal-foot">
+              <button type="button" className="fc-btn-secondary" onClick={closeActionModal}>Cancel</button>
+              <button type="button" className="fc-btn-primary" onClick={confirmAssignStump} disabled={!assignQuad || assignQuad === selectedMember.quad}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="12" y1="3" x2="12" y2="21" /><line x1="3" y1="12" x2="21" y2="12" />
+                </svg>
+                {selectedMember.quad && selectedMember.quad !== 'all' ? 'Reassign to Quadrant' : 'Assign to Quadrant'}
               </button>
             </div>
           </div>

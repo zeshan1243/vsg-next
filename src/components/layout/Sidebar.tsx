@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import LogoMark from '@/components/auth/LogoMark';
+import { useRole } from '@/lib/useRole';
 
 interface NavItem {
   label: string;
@@ -55,19 +56,20 @@ const NAV_SECTIONS: NavSection[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { roleLabel } = useRole();
 
   return (
     <nav className="sidebar">
       <div className="sidebar-logo">
         <LogoMark size={36} />
-        <div className="sidebar-logo-text">VSG <span>Creator</span></div>
+        <div className="sidebar-logo-text">VSG <span>{roleLabel}</span></div>
       </div>
 
       <div className="creator-badge">
         <div className="creator-avatar">SK</div>
         <div>
           <div className="c-name">Sarah Kaplan</div>
-          <div className="c-role">Creator</div>
+          <div className="c-role">{roleLabel}</div>
         </div>
       </div>
 

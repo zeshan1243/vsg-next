@@ -9,6 +9,9 @@ import { getCompletedQuads, getQuadMaxStep, isQuadUnlocked, type Quad } from '@/
 
 type PillColor = 'gold' | 'blue' | 'red' | 'green';
 type QuadColor = 'red' | 'green' | 'gold' | 'blue';
+type Priority = 'high' | 'medium' | 'low';
+type TemplateId = 'okr' | 'event' | 'research';
+
 interface Pill { label: string; color: PillColor; }
 interface QuadDef {
   code: string;
@@ -19,6 +22,24 @@ interface QuadDef {
   pills: Pill[];
   route: string;
 }
+
+const TEMPLATES: { id: TemplateId; name: string }[] = [
+  { id: 'okr', name: 'OKR Starter' },
+  { id: 'event', name: 'Event Planning' },
+  { id: 'research', name: 'Research' },
+];
+
+const TEMPLATE_FIELDS: Record<TemplateId, [string, string, string, string]> = {
+  okr:      ['Objective', 'Key Result 1', 'Key Result 2', 'Key Result 3'],
+  event:    ['Event Name', 'Event Date', 'Venue', 'Expected Attendance'],
+  research: ['Research Question', 'Methodology', 'Timeline', 'Deliverables'],
+};
+
+const PRIORITIES: { id: Priority; label: string }[] = [
+  { id: 'high', label: 'High' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'low', label: 'Low' },
+];
 
 interface TeamMember { initials: string; gradient: string; name: string; }
 
@@ -164,13 +185,6 @@ const AVAILABLE_LEADS = [
   'E. Torres', 'S. Mitchell', 'D. Lee', 'T. Harris',
 ];
 
-const KebabIcon = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-    <circle cx="12" cy="5"  r="2" />
-    <circle cx="12" cy="12" r="2" />
-    <circle cx="12" cy="19" r="2" />
-  </svg>
-);
 const WorkfieldsIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" />
@@ -242,18 +256,26 @@ export default function MoleculeOverviewPage() {
   const [maxSteps, setMaxSteps] = useState<Record<Quad, number>>({ a: 0, b: 0, c: 0, d: 0 });
   const [infoOpen, setInfoOpen] = useState(false);
   const [quadModal, setQuadModal] = useState<Quad | null>(null);
-  const [showCards, setShowCards] = useState(false);
 
   const [leadName, setLeadName] = useState('Marcus Reeves');
   const [workfields, setWorkfields] = useState<WorkfieldMap>({ ...DEFAULT_WORKFIELDS });
-  const [actionsOpen, setActionsOpen] = useState(false);
   const [wfModal, setWfModal] = useState(false);
   const [editingWfKey, setEditingWfKey] = useState<WorkfieldKey | null>(null);
   const [leadModal, setLeadModal] = useState(false);
   const [leadDraft, setLeadDraft] = useState('');
+  const [objective, setObjective] = useState(MOL_OBJECTIVE);
+  const [isFlipped, setIsFlipped] = useState(false);
+
+  // Edit Molecule Modal state
+  const [editMolModal, setEditMolModal] = useState(false);
+  const [molName, setMolName] = useState(mol?.name ?? '');
+  const [molObjective, setMolObjective] = useState(MOL_OBJECTIVE);
+  const [molTargetDate, setMolTargetDate] = useState('2026-03-28');
+  const [molPriority, setMolPriority] = useState<Priority>('medium');
+  const [molTemplate, setMolTemplate] = useState<TemplateId>('event');
 
   useEffect(() => {
-    if (!infoOpen && quadModal === null && !wfModal && !leadModal) return;
+    if (!infoOpen && quadModal === null && !wfModal && !leadModal && !editMolModal) return;
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
       setInfoOpen(false);
@@ -261,24 +283,32 @@ export default function MoleculeOverviewPage() {
       setWfModal(false);
       setEditingWfKey(null);
       setLeadModal(false);
+      setEditMolModal(false);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [infoOpen, quadModal, wfModal, leadModal]);
+  }, [infoOpen, quadModal, wfModal, leadModal, editMolModal]);
 
-  useEffect(() => {
-    if (!actionsOpen) return;
-    function onClick() { setActionsOpen(false); }
-    window.addEventListener('click', onClick);
-    return () => window.removeEventListener('click', onClick);
-  }, [actionsOpen]);
+  function openEditMolModal() {
+    setMolName(mol?.name ?? '');
+    setMolObjective(objective);
+    setEditMolModal(true);
+  }
+  function closeEditMolModal() { setEditMolModal(false); }
+  function saveEditMol() {
+    if (molName.trim() && molObjective.trim()) {
+      setObjective(molObjective);
+      // In a real app, you'd also update the molecule name, target date, etc.
+    }
+    setEditMolModal(false);
+  }
 
-  function openWfModal()   { setWfModal(true); setEditingWfKey(null); setActionsOpen(false); }
+  function openWfModal()   { setWfModal(true); setEditingWfKey(null); }
   function closeWfModal()  { setWfModal(false); setEditingWfKey(null); }
   function updateWorkfield(key: WorkfieldKey, value: string) {
     setWorkfields(prev => ({ ...prev, [key]: value }));
   }
-  function openLeadModal() { setLeadDraft(leadName); setLeadModal(true); setActionsOpen(false); }
+  function openLeadModal() { setLeadDraft(leadName); setLeadModal(true); }
   function closeLeadModal(){ setLeadModal(false); }
   function saveLead() {
     if (!leadDraft.trim()) return;
@@ -324,233 +354,210 @@ export default function MoleculeOverviewPage() {
 
       <div className="creator-content">
 
-        {/* Header */}
-        <div className="ov-header">
-          <div>
-            <h1 className="ov-title">{mol.name}</h1>
-            <p className="ov-desc">{MOL_OBJECTIVE}</p>
-          </div>
-          <div className="ov-header-right">
-            <div className="lead-pill">
-              <div className="lead-label">LEAD</div>
-              <div className="lead-name">{leadName}</div>
-              <div className="lead-hint">Assigned by Creator</div>
-            </div>
-            <div className="ov-actions">
-              <button
-                type="button"
-                className={`ov-actions-btn${actionsOpen ? ' open' : ''}`}
-                onClick={e => { e.stopPropagation(); setActionsOpen(v => !v); }}
-                aria-haspopup="menu"
-                aria-expanded={actionsOpen}
-                aria-label="Molecule actions"
-                title="Actions"
-              >
-                {KebabIcon}
-              </button>
-              {actionsOpen && (
-                <div className="ov-actions-menu" role="menu" onClick={e => e.stopPropagation()}>
-                  <button type="button" role="menuitem" className="ov-actions-item" onClick={openWfModal}>
-                    {WorkfieldsIcon}
-                    Edit Workfields
-                  </button>
-                  <button type="button" role="menuitem" className="ov-actions-item" onClick={openLeadModal}>
-                    {LeadIcon}
-                    Change Lead
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Hero: pie + quadrants */}
-        <div className={`ov-hero${showCards ? '' : ' ov-hero--pie-only'}`}>
-          <div className="ov-pie-wrap">
-            <svg
-              viewBox="-20 -20 380 380"
-              width="380"
-              height="380"
-              style={{ display: 'block', filter: 'drop-shadow(0 8px 24px rgba(13,27,42,.1))' }}
-            >
-              {/* Segmented progress ring — one arc per quad */}
-              {(() => {
-                const cx = 170, cy = 170, r = 178;
-                const toRad = (deg: number) => (deg * Math.PI) / 180;
-                function arcPath(startDeg: number, endDeg: number) {
-                  const s = { x: cx + r * Math.cos(toRad(startDeg)), y: cy + r * Math.sin(toRad(startDeg)) };
-                  const e = { x: cx + r * Math.cos(toRad(endDeg)),   y: cy + r * Math.sin(toRad(endDeg)) };
-                  const large = endDeg - startDeg > 180 ? 1 : 0;
-                  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
-                }
-                const SEGS = [
-                  { quad: 'a' as const, start: 93,  end: 177, color: '#FFAB00' },
-                  { quad: 'b' as const, start: 3,   end: 87,  color: '#3B82F6' },
-                  { quad: 'c' as const, start: 183, end: 267, color: '#EF4444' },
-                  { quad: 'd' as const, start: 273, end: 357, color: '#22C55E' },
-                ];
-                return (
-                  <g>
-                    {SEGS.map(seg => (
-                      <path
-                        key={seg.quad}
-                        d={arcPath(seg.start, seg.end)}
-                        fill="none"
-                        stroke="var(--border)"
-                        strokeWidth="6"
-                        strokeLinecap="round"
-                      />
-                    ))}
-                    {SEGS.filter(seg => completedQuads.includes(seg.quad)).map(seg => (
-                      <path
-                        key={seg.quad}
-                        d={arcPath(seg.start, seg.end)}
-                        fill="none"
-                        stroke={seg.color}
-                        strokeWidth="6"
-                        strokeLinecap="round"
-                        style={{ transition: 'stroke .3s ease' }}
-                      />
-                    ))}
-                  </g>
-                );
-              })()}
-
-
-              {PIE_SECTORS.map(s => {
-                const quadKey = s.code.slice(-1).toLowerCase() as Quad;
-                const isCompleted = completedQuads.includes(quadKey);
-                return (
-                  <g
-                    key={s.code}
-                    style={{
-                      opacity: isCompleted ? 1 : 0.5,
-                      transition: 'opacity .22s ease',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => setQuadModal(quadKey)}
-                  >
-                    <path
-                      d={s.d}
-                      fill={s.fill}
-                      stroke="white"
-                      strokeWidth="3"
-                    />
-                    <text
-                      x={s.lx} y={s.ly - 7}
-                      textAnchor="middle"
-                      fill="rgba(255,255,255,.75)"
-                      fontFamily="var(--font-sans)"
-                      fontSize="10"
-                      fontWeight="600"
-                      letterSpacing="1"
-                      style={{ pointerEvents: 'none' }}
-                    >
-                      {s.code}
-                    </text>
-                    <text
-                      x={s.lx} y={s.ly + 8}
-                      textAnchor="middle"
-                      fill="white"
-                      fontFamily="var(--font-sans)"
-                      fontSize="11"
-                      fontWeight="700"
-                      style={{ pointerEvents: 'none' }}
-                    >
-                      {s.label}
-                    </text>
-                  </g>
-                );
-              })}
-              <g style={{ cursor: 'pointer' }} onClick={() => setInfoOpen(true)}>
-                <circle cx="170" cy="170" r="24" fill="white" />
-                <circle cx="170" cy="170" r="24" fill="transparent" stroke="var(--border)" strokeWidth="1" />
-                <text
-                  x="170" y="174"
-                  textAnchor="middle"
-                  fontFamily="var(--font-sans)"
-                  fontSize="13"
-                  fontWeight="700"
-                  fill="var(--navy)"
-                >i</text>
-              </g>
-            </svg>
-
-            <button
-              type="button"
-              className="ov-toggle-cards"
-              onClick={() => setShowCards(v => !v)}
-              aria-expanded={showCards}
-            >
-              {showCards ? 'Hide Inner Structure' : 'Show Inner Structure'}
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                style={{ transform: showCards ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
-
-          {showCards && (
-            <div className="ov-quads">
-              {QUADS.slice(0, 2).map(q => (
-                <QuadCard
-                  key={q.code} {...q}
-                  disabled={!isQuadUnlocked(q.quad, completedQuads)}
-                  maxStep={maxSteps[q.quad]}
-                  onPillClick={step => goToStep(q, step)}
-                />
-              ))}
-              <div className="ov-quad-progress">
-                <div className="ov-quad-progress-fill" style={{ width: `${completedQuads.length * 25}%` }} />
-              </div>
-              {QUADS.slice(2).map(q => (
-                <QuadCard
-                  key={q.code} {...q}
-                  disabled={!isQuadUnlocked(q.quad, completedQuads)}
-                  maxStep={maxSteps[q.quad]}
-                  onPillClick={step => goToStep(q, step)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Bottom: team + details */}
-        <div className="ov-bottom">
-          <div className="panel-card">
-            <div className="panel-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <div className="panel-card-title">Team · {TEAM.length} Members</div>
-              <button type="button" className="btn-sm" onClick={() => { /* TODO: assign flow */ }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        {/* Molecule Info Card - Expanded */}
+        <div className="mol-card">
+          {/* Top Row */}
+          <div className="mol-card-top">
+            <div className="mol-card-title-group">
+              <h1 className="mol-card-name">{mol.name}</h1>
+              <span className="mol-card-badge">Event</span>
+              <button type="button" className="mol-card-edit-btn" onClick={openEditMolModal} title="Edit Molecule">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                 </svg>
-                Assign
               </button>
             </div>
-            <div className="team-avatars">
-              {TEAM.map(m => (
-                <div
-                  key={m.initials}
-                  className="team-av"
-                  style={{ background: m.gradient }}
-                  title={m.name}
-                >
-                  {m.initials}
+            <div className="mol-card-actions">
+              <button type="button" className="mol-card-action" onClick={openWfModal} title="Edit Labels">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+                </svg>
+              </button>
+              <button type="button" className="mol-card-action" onClick={openLeadModal} title="Change Lead">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </button>
+              <div className="mol-card-team">
+                <div className="mol-card-avatars">
+                  {TEAM.slice(0, 4).map(m => (
+                    <div key={m.initials} className="mol-card-av" style={{ background: m.gradient }} title={m.name}>
+                      {m.initials}
+                    </div>
+                  ))}
+                  {TEAM.length > 4 && (
+                    <div className="mol-card-av mol-card-av--more">+{TEAM.length - 4}</div>
+                  )}
                 </div>
-              ))}
+                <Link href={`/molecules/${id}/members`} className="mol-card-assign">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </Link>
+              </div>
             </div>
           </div>
 
-          <div className="panel-card">
-            <div className="panel-card-header">
-              <div className="panel-card-title">Details</div>
+          {/* Objective */}
+          <p className="mol-card-objective">{objective}</p>
+
+          {/* Bottom Row - Progress & Stats */}
+          <div className="mol-card-bottom">
+            <div className="mol-card-stats">
+              <div className="mol-card-stat">
+                <span className="mol-card-stat-label">Status</span>
+                <span className={`mol-card-status ${completedQuads.length === 4 ? 'mol-card-status--complete' : completedQuads.length > 0 ? 'mol-card-status--active' : 'mol-card-status--draft'}`}>
+                  {completedQuads.length === 4 ? 'Complete' : completedQuads.length > 0 ? 'Active' : 'Draft'}
+                </span>
+              </div>
+              <div className="mol-card-stat">
+                <span className="mol-card-stat-label">Current Phase</span>
+                <span className="mol-card-stat-value mol-card-phase-value" style={{ color: completedQuads.length === 0 ? '#FFAB00' : completedQuads.length === 1 ? '#3B82F6' : completedQuads.length === 2 ? '#EF4444' : completedQuads.length === 3 ? '#22C55E' : '#22C55E' }}>
+                  <span className="mol-card-phase-dot" style={{ background: completedQuads.length === 0 ? '#FFAB00' : completedQuads.length === 1 ? '#3B82F6' : completedQuads.length === 2 ? '#EF4444' : completedQuads.length === 3 ? '#22C55E' : '#22C55E' }} />
+                  {completedQuads.length === 0 ? 'Coordinate' : completedQuads.length === 1 ? 'Communication' : completedQuads.length === 2 ? 'Knowledge' : completedQuads.length === 3 ? 'Exchange' : 'Completed'}
+                </span>
+              </div>
+              <div className="mol-card-stat">
+                <span className="mol-card-stat-label">Progress</span>
+                <span className="mol-card-stat-value">{completedQuads.length}/4 Quadrants</span>
+              </div>
+              <div className="mol-card-stat">
+                <span className="mol-card-stat-label">Target Date</span>
+                <span className="mol-card-stat-value">Mar 28, 2026</span>
+              </div>
+              <div className="mol-card-stat">
+                <span className="mol-card-stat-label">Priority</span>
+                <span className="mol-card-stat-value">Medium</span>
+              </div>
             </div>
-            <div className="details-body">
-              <div className="details-row"><span className="details-key">Initiated</span><span className="details-val">Jan 12, 2026</span></div>
-              <div className="details-row"><span className="details-key">Target</span><span className="details-val">Mar 28, 2026</span></div>
-              <div className="details-row"><span className="details-key">Template</span><span className="details-val">Event OKR Starter</span></div>
-              <div className="details-row"><span className="details-key">Tasks done</span><span className="details-val">9 / 12</span></div>
+          </div>
+        </div>
+
+        {/* Hero: Flip card with pie + quadrants */}
+        <div className={`ov-flip-container${isFlipped ? ' flipped' : ''}`}>
+          <div className="ov-flip-card">
+            {/* Front: Pie chart */}
+            <div className="ov-flip-front">
+              <div className="ov-pie-wrap">
+                <svg
+                  viewBox="-20 -20 380 380"
+                  width="380"
+                  height="380"
+                  style={{ display: 'block', filter: 'drop-shadow(0 8px 24px rgba(13,27,42,.1))' }}
+                >
+                  {/* Segmented progress ring */}
+                  {(() => {
+                    const cx = 170, cy = 170, r = 178;
+                    const toRad = (deg: number) => (deg * Math.PI) / 180;
+                    function arcPath(startDeg: number, endDeg: number) {
+                      const s = { x: cx + r * Math.cos(toRad(startDeg)), y: cy + r * Math.sin(toRad(startDeg)) };
+                      const e = { x: cx + r * Math.cos(toRad(endDeg)),   y: cy + r * Math.sin(toRad(endDeg)) };
+                      const large = endDeg - startDeg > 180 ? 1 : 0;
+                      return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
+                    }
+                    const SEGS = [
+                      { quad: 'a' as const, start: 93,  end: 177, color: '#FFAB00' },
+                      { quad: 'b' as const, start: 3,   end: 87,  color: '#3B82F6' },
+                      { quad: 'c' as const, start: 183, end: 267, color: '#EF4444' },
+                      { quad: 'd' as const, start: 273, end: 357, color: '#22C55E' },
+                    ];
+                    return (
+                      <g>
+                        {SEGS.map(seg => (
+                          <path
+                            key={seg.quad}
+                            d={arcPath(seg.start, seg.end)}
+                            fill="none"
+                            stroke="var(--border)"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                          />
+                        ))}
+                        {SEGS.filter(seg => completedQuads.includes(seg.quad)).map(seg => (
+                          <path
+                            key={seg.quad}
+                            d={arcPath(seg.start, seg.end)}
+                            fill="none"
+                            stroke={seg.color}
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                            style={{ transition: 'stroke .3s ease' }}
+                          />
+                        ))}
+                      </g>
+                    );
+                  })()}
+
+                  {PIE_SECTORS.map(s => {
+                    const quadKey = s.code.slice(-1).toLowerCase() as Quad;
+                    const isCompleted = completedQuads.includes(quadKey);
+                    return (
+                      <g
+                        key={s.code}
+                        style={{
+                          opacity: isCompleted ? 1 : 0.5,
+                          transition: 'opacity .22s ease',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setQuadModal(quadKey)}
+                      >
+                        <path d={s.d} fill={s.fill} stroke="white" strokeWidth="3" />
+                        <text x={s.lx} y={s.ly - 7} textAnchor="middle" fill="rgba(255,255,255,.75)" fontFamily="var(--font-sans)" fontSize="10" fontWeight="600" letterSpacing="1" style={{ pointerEvents: 'none' }}>{s.code}</text>
+                        <text x={s.lx} y={s.ly + 8} textAnchor="middle" fill="white" fontFamily="var(--font-sans)" fontSize="11" fontWeight="700" style={{ pointerEvents: 'none' }}>{s.label}</text>
+                      </g>
+                    );
+                  })}
+
+                  {/* Center button - click to flip */}
+                  <g className="ov-center-btn" style={{ cursor: 'pointer' }} onClick={() => setIsFlipped(true)}>
+                    <circle cx="170" cy="170" r="28" fill="white" className="ov-center-bg" />
+                    <circle cx="170" cy="170" r="28" fill="transparent" stroke="var(--border)" strokeWidth="1.5" className="ov-center-ring" />
+                    {/* Grid/expand icon - quadrant colors */}
+                    <g transform="translate(170, 170)">
+                      <rect x="-8" y="-8" width="7" height="7" rx="1.5" fill="#EF4444" />
+                      <rect x="1" y="-8" width="7" height="7" rx="1.5" fill="#22C55E" />
+                      <rect x="-8" y="1" width="7" height="7" rx="1.5" fill="#FFAB00" />
+                      <rect x="1" y="1" width="7" height="7" rx="1.5" fill="#3B82F6" />
+                    </g>
+                  </g>
+                </svg>
+              </div>
+            </div>
+
+            {/* Back: Quadrant cards */}
+            <div className="ov-flip-back">
+              <a
+                className="ov-back-link"
+                onClick={() => setIsFlipped(false)}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Back to Overview
+              </a>
+              <div className="ov-quads-container">
+                <div className="ov-quads">
+                  {QUADS.slice(0, 2).map(q => (
+                    <QuadCard
+                      key={q.code} {...q}
+                      disabled={!isQuadUnlocked(q.quad, completedQuads)}
+                      maxStep={maxSteps[q.quad]}
+                      onPillClick={step => goToStep(q, step)}
+                    />
+                  ))}
+                  <div className="ov-quad-progress">
+                    <div className="ov-quad-progress-fill" style={{ width: `${completedQuads.length * 25}%` }} />
+                  </div>
+                  {QUADS.slice(2).map(q => (
+                    <QuadCard
+                      key={q.code} {...q}
+                      disabled={!isQuadUnlocked(q.quad, completedQuads)}
+                      maxStep={maxSteps[q.quad]}
+                      onPillClick={step => goToStep(q, step)}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -735,7 +742,7 @@ export default function MoleculeOverviewPage() {
             </div>
             <div className="ov-modal-body">
               <div className="fc-hint" style={{ marginTop: 0, marginBottom: '16px' }}>
-                Click the pencil to rename a workfield. Press Enter to confirm.
+                Click the pencil to rename workfields label. Press Enter to confirm.
               </div>
               <div className="wf-edit-grid">
                 {WORKFIELD_FIELDS.map((f, idx) => {
@@ -821,6 +828,110 @@ export default function MoleculeOverviewPage() {
               <button type="button" className="fc-btn-secondary" onClick={closeLeadModal}>Cancel</button>
               <button type="button" className="fc-btn-primary" onClick={saveLead} disabled={leadDraft.trim() === leadName}>
                 Save Lead
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Molecule modal ── */}
+      {editMolModal && (
+        <div className="ov-modal-overlay" onClick={closeEditMolModal}>
+          <div className="ov-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: '560px' }}>
+            <div className="ov-modal-header">
+              <div className="ov-modal-eyebrow">Edit Molecule</div>
+              <button type="button" className="ov-modal-close" onClick={closeEditMolModal} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ov-modal-body">
+              <div className="fc-group">
+                <label className="fc-label">Molecule Name <span className="req">*</span></label>
+                <input
+                  className="fc-input"
+                  type="text"
+                  placeholder="e.g., Q4 Product Launch"
+                  value={molName}
+                  onChange={e => setMolName(e.target.value)}
+                />
+              </div>
+              <div className="fc-group">
+                <label className="fc-label">High-Level Objective <span className="req">*</span></label>
+                <textarea
+                  className="fc-textarea"
+                  placeholder="Define the primary objective"
+                  style={{ minHeight: '80px' }}
+                  value={molObjective}
+                  onChange={e => setMolObjective(e.target.value)}
+                />
+              </div>
+              <div className="fc-row">
+                <div className="fc-group">
+                  <label className="fc-label">Target Date</label>
+                  <input
+                    className="fc-input"
+                    type="date"
+                    value={molTargetDate}
+                    onChange={e => setMolTargetDate(e.target.value)}
+                  />
+                </div>
+                <div className="fc-group">
+                  <label className="fc-label">Priority</label>
+                  <select
+                    className="fc-select"
+                    value={molPriority}
+                    onChange={e => setMolPriority(e.target.value as Priority)}
+                  >
+                    {PRIORITIES.map(p => (
+                      <option key={p.id} value={p.id}>{p.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="fc-group">
+                <label className="fc-label">Template</label>
+                <select
+                  className="fc-select"
+                  value={molTemplate}
+                  onChange={e => setMolTemplate(e.target.value as TemplateId)}
+                >
+                  {TEMPLATES.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="tmpl-fields">
+                <div className="tmpl-fields-title">
+                  {TEMPLATES.find(t => t.id === molTemplate)?.name} includes
+                </div>
+                <div className="tmpl-fields-grid">
+                  {TEMPLATE_FIELDS[molTemplate].map((label, idx) => (
+                    <div key={`${molTemplate}-${idx}`} className="tmpl-field-pill">
+                      <span className="tmpl-field-num">{idx + 1}</span>
+                      <span className="tmpl-field-label">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="fc-group">
+                <label className="fc-label">Lead</label>
+                <select
+                  className="fc-select"
+                  value={leadName}
+                  onChange={e => setLeadName(e.target.value)}
+                >
+                  {AVAILABLE_LEADS.map(l => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="ov-modal-foot">
+              <button type="button" className="fc-btn-secondary" onClick={closeEditMolModal}>Cancel</button>
+              <button type="button" className="fc-btn-primary" onClick={saveEditMol} disabled={!molName.trim() || !molObjective.trim()}>
+                Save Changes
               </button>
             </div>
           </div>

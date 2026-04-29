@@ -4,8 +4,17 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LogoMark from '@/components/auth/LogoMark';
+import { type UserRole } from '@/lib/useRole';
 
-type Role = 'lead' | 'stump' | 'admin';
+type Role = UserRole;
+
+const ROLES: { key: Role; label: string; enabled: boolean }[] = [
+  { key: 'creator', label: 'Creator', enabled: true },
+  { key: 'lead', label: 'Lead', enabled: true },
+  { key: 'stump', label: 'Stump', enabled: false },
+  { key: 'sub-stump', label: 'Sub-Stump', enabled: false },
+  { key: 'admin', label: 'Platform Admin', enabled: false },
+];
 
 // Rendered into a 2-col CSS grid: row 1 = C, D · row 2 = A, B
 const QUAD_CELLS = [
@@ -23,7 +32,7 @@ const HIER_PILLS = [
 ];
 
 export default function LoginPage() {
-  const [activeRole, setActiveRole] = useState<Role>('lead');
+  const [activeRole, setActiveRole] = useState<Role>('creator');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -38,12 +47,18 @@ export default function LoginPage() {
   }
 
   function handleLogin() {
-    if (!email || !password) { showToast('Please fill in all fields.', false); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Enter a valid email address.', false); return; }
+    // For enabled roles (Creator, Lead), no credentials needed for now
+    const currentRole = ROLES.find(r => r.key === activeRole);
+    if (!currentRole?.enabled) {
+      showToast('This role is not available yet.', false);
+      return;
+    }
     setLoading(true);
+    // Save role to localStorage
+    localStorage.setItem('vsg-role', activeRole);
     setTimeout(() => {
       router.push('/dashboard');
-    }, 1800);
+    }, 1200);
   }
 
   return (
@@ -104,13 +119,19 @@ export default function LoginPage() {
 
           {/* Role tabs */}
           <div className="role-tabs">
-            {(['lead', 'stump', 'admin'] as Role[]).map((role) => (
+            {ROLES.map(({ key, label, enabled }) => (
               <div
-                key={role}
-                className={`role-tab${activeRole === role ? ' active' : ''}`}
-                onClick={() => setActiveRole(role)}
+                key={key}
+                className={`role-tab${activeRole === key ? ' active' : ''}${!enabled ? ' disabled' : ''}`}
+                onClick={() => enabled && setActiveRole(key)}
+                title={!enabled ? 'Coming soon' : undefined}
               >
-                {role === 'lead' ? 'Lead' : role === 'stump' ? 'Stump' : 'Platform Admin'}
+                {label}
+                {!enabled && (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: 4, opacity: 0.5 }}>
+                    <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                )}
               </div>
             ))}
           </div>
