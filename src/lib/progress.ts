@@ -113,3 +113,52 @@ export function bumpQuadMaxStep(molId: string, quad: Quad, step: number): void {
     // ignore
   }
 }
+
+// ── Stump-specific state ────────────────────────────
+// A stump can only access the quadrants assigned to them by the Lead.
+// Default assignment for the demo is Quadrant A.
+const STUMP_ASSIGNED_KEY = 'vsg:stump:assigned-quads';
+const STUMP_DEFAULT_ASSIGNED: Quad[] = ['a'];
+
+function parseQuadArray(raw: string | null, fallback: Quad[]): Quad[] {
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return fallback;
+    const filtered = parsed.filter((v): v is Quad => v === 'a' || v === 'b' || v === 'c' || v === 'd');
+    return filtered.length === 0 ? fallback : filtered;
+  } catch {
+    return fallback;
+  }
+}
+
+export function getStumpAssignedQuads(): Quad[] {
+  if (typeof window === 'undefined') return STUMP_DEFAULT_ASSIGNED;
+  try {
+    return parseQuadArray(window.localStorage.getItem(STUMP_ASSIGNED_KEY), STUMP_DEFAULT_ASSIGNED);
+  } catch {
+    return STUMP_DEFAULT_ASSIGNED;
+  }
+}
+
+const STUMP_SUBMITTED_KEY = (molId: string) => `vsg:mol:${molId}:stump-submitted-quads`;
+
+export function getStumpSubmittedQuads(molId: string): Quad[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return parseQuadArray(window.localStorage.getItem(STUMP_SUBMITTED_KEY(molId)), []);
+  } catch {
+    return [];
+  }
+}
+
+export function markStumpQuadSubmitted(molId: string, quad: Quad): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getStumpSubmittedQuads(molId);
+    if (current.includes(quad)) return;
+    window.localStorage.setItem(STUMP_SUBMITTED_KEY(molId), JSON.stringify([...current, quad]));
+  } catch {
+    // ignore
+  }
+}

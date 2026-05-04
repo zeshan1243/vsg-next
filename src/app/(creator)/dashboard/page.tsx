@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { MOLECULES, MOLECULE_STATE_CONFIG, getMoleculeStateCounts, type MoleculeState } from '@/lib/molecules';
+import { getStumpAssignedQuads, getStumpSubmittedQuads, type Quad } from '@/lib/progress';
 import { useRole } from '@/lib/useRole';
 
 const STATE_ORDER: MoleculeState[] = ['draft', 'active', 'paused', 'completed', 'archived'];
@@ -126,29 +127,85 @@ const ATTENTION_ICONS: Record<AttentionType, React.ReactNode> = {
 
 type ChartTab = 'pipeline' | 'members' | 'invitations';
 
+const QUAD_LABELS: Record<Quad, { letter: string; phase: string; artifact: string; color: string }> = {
+  a: { letter: 'A', phase: 'Coordinate',    artifact: 'OKRs',  color: '#FFAB00' },
+  b: { letter: 'B', phase: 'Communication', artifact: 'KPIs',  color: '#3B82F6' },
+  c: { letter: 'C', phase: 'Knowledge',     artifact: 'Jobs',  color: '#EF4444' },
+  d: { letter: 'D', phase: 'Exchange',      artifact: 'Tasks', color: '#22C55E' },
+};
+
+// Mock Sub-Stumps under the active Stump. In a real app these come from
+// /members filtered by quadrant assignment.
+const STUMP_SUBSTUMPS = [
+  { id: 's1', name: 'James Thompson', initials: 'JT', role: 'Sub-Stump · Q-A', gradient: 'linear-gradient(135deg, #38BDF8, #7DD3FC)', online: true  },
+  { id: 's2', name: 'Aisha Reddy',    initials: 'AR', role: 'Sub-Stump · Q-A', gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)', online: true  },
+  { id: 's3', name: 'Carlos Mendez',  initials: 'CM', role: 'Sub-Stump · Q-A', gradient: 'linear-gradient(135deg, #EF4444, #F87171)', online: false },
+  { id: 's4', name: 'Priya Nair',     initials: 'PN', role: 'Sub-Stump · Q-A', gradient: 'linear-gradient(135deg, #22C55E, #4ADE80)', online: true  },
+];
+
+// Recent activity feed for a Stump — only their Sub-Stumps' actions.
+const STUMP_AUDIT_FEED = [
+  { id: 1, action: 'submitted', user: 'James Thompson', target: 'Vendor Outreach Task', time: '15 min ago', icon: 'file'         },
+  { id: 2, action: 'completed', user: 'James Thompson', target: 'Quadrant A — Step 4',  time: '1h ago',     icon: 'check'        },
+  { id: 3, action: 'commented', user: 'Aisha Reddy',    target: 'OKR draft',            time: '3h ago',     icon: 'message'      },
+  { id: 4, action: 'updated',   user: 'Priya Nair',     target: 'Vendor list',          time: '5h ago',     icon: 'edit'         },
+  { id: 5, action: 'joined',    user: 'Carlos Mendez',  target: 'Quadrant A',           time: '1d ago',     icon: 'user-plus'    },
+  { id: 6, action: 'submitted', user: 'Aisha Reddy',    target: 'KPI draft',            time: '2d ago',     icon: 'file'         },
+  { id: 7, action: 'approved',  user: 'James Thompson', target: 'Partner shortlist',    time: '2d ago',     icon: 'check-circle' },
+];
+
+// Mock attention items relevant to a Stump (lead feedback, sub-stump prompts).
+const STUMP_ATTENTION_ITEMS: AttentionItem[] = [
+  { id: 101, type: 'request-pending',    title: 'Awaiting Lead Review',     molecule: 'Premier Wedding Expo', moleculeId: 'premier-wedding-expo', description: 'Quadrant A submission is pending Lead approval.',          time: '1h ago', priority: 'medium' },
+  { id: 102, type: 'flag-raised',        title: 'Lead Requested Changes',   molecule: 'Premier Wedding Expo', moleculeId: 'premier-wedding-expo', description: 'Marcus Reeves asked for adjustments on Quadrant A KPIs.',  time: '3h ago', priority: 'high'   },
+  { id: 103, type: 'pending-invitation', title: 'Sub-Stump Onboarding',     molecule: 'Premier Wedding Expo', moleculeId: 'premier-wedding-expo', description: 'James Thompson hasn’t accepted Quadrant A assignment yet.', time: '1d ago', priority: 'low'    },
+];
+
 export default function DashboardPage() {
   const router = useRouter();
-  const { roleLabel, canCreateMolecule } = useRole();
+  const { roleLabel, canCreateMolecule, isStump } = useRole();
   const [today, setToday] = useState('');
   const [chartTab, setChartTab] = useState<ChartTab>('pipeline');
   const [attentionFilter, setAttentionFilter] = useState<'all' | Priority>('all');
+  const [stumpAssigned, setStumpAssigned] = useState<Quad[]>([]);
+  const [stumpSubmittedByMol, setStumpSubmittedByMol] = useState<Record<string, Quad[]>>({});
+
+  useEffect(() => {
+    if (!isStump) return;
+    setStumpAssigned(getStumpAssignedQuads());
+    const submitted: Record<string, Quad[]> = {};
+    for (const mol of MOLECULES) submitted[mol.id] = getStumpSubmittedQuads(mol.id);
+    setStumpSubmittedByMol(submitted);
+  }, [isStump]);
 
   const stateCounts    = getMoleculeStateCounts();
   const totalMolecules = MOLECULES.length;
 
+  // Stumps see a single demo molecule (Premier Wedding Expo) where they hold
+  // the assigned Quadrant. In a real app this would come from the backend.
+  const stumpMolecules = isStump ? MOLECULES.filter(m => m.id === 'premier-wedding-expo') : [];
+  const totalSubmitted = Object.values(stumpSubmittedByMol).reduce((sum, qs) => sum + qs.length, 0);
+  const totalAssignedSlots = isStump ? stumpMolecules.length * stumpAssigned.length : 0;
+  const awaitingReview = totalSubmitted;
+  const inProgressSlots = Math.max(0, totalAssignedSlots - totalSubmitted);
+
+  const activeAttention = isStump ? STUMP_ATTENTION_ITEMS : ATTENTION_ITEMS;
   const attentionCounts: Record<'all' | Priority, number> = {
-    all:    ATTENTION_ITEMS.length,
-    high:   ATTENTION_ITEMS.filter(i => i.priority === 'high').length,
-    medium: ATTENTION_ITEMS.filter(i => i.priority === 'medium').length,
-    low:    ATTENTION_ITEMS.filter(i => i.priority === 'low').length,
+    all:    activeAttention.length,
+    high:   activeAttention.filter(i => i.priority === 'high').length,
+    medium: activeAttention.filter(i => i.priority === 'medium').length,
+    low:    activeAttention.filter(i => i.priority === 'low').length,
   };
   const visibleAttention = attentionFilter === 'all'
-    ? ATTENTION_ITEMS
-    : ATTENTION_ITEMS.filter(i => i.priority === attentionFilter);
+    ? activeAttention
+    : activeAttention.filter(i => i.priority === attentionFilter);
 
   useEffect(() => { setToday(formatToday()); }, []);
 
-  const onlineCount = ACTIVE_USERS.filter(u => u.online).length;
+  // For Stump: roster = their Sub-Stumps. For others: full active workspace.
+  const teamRoster = isStump ? STUMP_SUBSTUMPS : ACTIVE_USERS;
+  const onlineCount = teamRoster.filter(u => u.online).length;
+  const activityFeed = isStump ? STUMP_AUDIT_FEED : AUDIT_FEED;
 
   return (
     <>
@@ -185,151 +242,315 @@ export default function DashboardPage() {
         {/* Hero strip */}
         <div className="dash-hero">
           <div>
-            <div className="dash-hero-eyebrow">Good morning, Sarah</div>
-            <div className="dash-hero-title">Your workspace is performing well.</div>
-            <div className="dash-hero-sub">{stateCounts.active} active molecules · {onlineCount} of {ACTIVE_USERS.length} teammates online</div>
+            <div className="dash-hero-eyebrow">{isStump ? `Welcome, ${roleLabel}` : 'Good morning, Sarah'}</div>
+            <div className="dash-hero-title">
+              {isStump
+                ? 'Drive your assigned Quadrants to completion.'
+                : 'Your workspace is performing well.'}
+            </div>
+            <div className="dash-hero-sub">
+              {isStump
+                ? `${totalAssignedSlots} assigned Quadrant${totalAssignedSlots === 1 ? '' : 's'} · ${awaitingReview} awaiting Lead review · ${onlineCount} of ${teamRoster.length} ${isStump ? 'Sub-Stumps' : 'teammates'} online`
+                : `${stateCounts.active} active molecules · ${onlineCount} of ${teamRoster.length} ${isStump ? 'Sub-Stumps' : 'teammates'} online`}
+            </div>
           </div>
           <div className="dash-hero-meta">
-            <div className="dash-hero-stat">
-              <div className="dash-hero-stat-val">{stateCounts.active + stateCounts.paused}</div>
-              <div className="dash-hero-stat-label">In progress</div>
-            </div>
-            <div className="dash-hero-stat">
-              <div className="dash-hero-stat-val">{stateCounts.completed}</div>
-              <div className="dash-hero-stat-label">Completed</div>
-            </div>
+            {isStump ? (
+              <>
+                <div className="dash-hero-stat">
+                  <div className="dash-hero-stat-val">{inProgressSlots}</div>
+                  <div className="dash-hero-stat-label">In progress</div>
+                </div>
+                <div className="dash-hero-stat">
+                  <div className="dash-hero-stat-val">{totalSubmitted}</div>
+                  <div className="dash-hero-stat-label">Submitted</div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="dash-hero-stat">
+                  <div className="dash-hero-stat-val">{stateCounts.active + stateCounts.paused}</div>
+                  <div className="dash-hero-stat-label">In progress</div>
+                </div>
+                <div className="dash-hero-stat">
+                  <div className="dash-hero-stat-val">{stateCounts.completed}</div>
+                  <div className="dash-hero-stat-label">Completed</div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
         {/* KPI strip */}
         <div className="dash-kpis">
-          <div className="dash-kpi">
-            <div className="dash-kpi-icon green">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="8" />
-                <line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" />
-                <line x1="2" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22" y2="12" />
-              </svg>
-            </div>
-            <div className="dash-kpi-body">
-              <div className="dash-kpi-value">{totalMolecules}</div>
-              <div className="dash-kpi-label">Total Molecules</div>
-              <div className="dash-kpi-hint">{stateCounts.active} active · {stateCounts.draft} draft</div>
-            </div>
-          </div>
+          {isStump ? (
+            <>
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon green">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <line x1="12" y1="3" x2="12" y2="21" /><line x1="3" y1="12" x2="21" y2="12" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{totalAssignedSlots}</div>
+                  <div className="dash-kpi-label">Assigned Quadrants</div>
+                  <div className="dash-kpi-hint">across {stumpMolecules.length} molecule{stumpMolecules.length === 1 ? '' : 's'}</div>
+                </div>
+              </div>
 
-          <div className="dash-kpi">
-            <div className="dash-kpi-icon cyan">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </div>
-            <div className="dash-kpi-body">
-              <div className="dash-kpi-value">{TOTAL_MEMBERS}</div>
-              <div className="dash-kpi-label">Members</div>
-              <div className="dash-kpi-hint">{MEMBER_ROLES.find(r => r.role === 'Lead')?.count ?? 0} leads · {MEMBER_ROLES.find(r => r.role === 'Viewer')?.count ?? 0} viewers</div>
-            </div>
-          </div>
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon cyan">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{totalSubmitted}</div>
+                  <div className="dash-kpi-label">Submitted to Lead</div>
+                  <div className="dash-kpi-hint">work delivered for review</div>
+                </div>
+              </div>
 
-          <div className="dash-kpi">
-            <div className="dash-kpi-icon gold">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-            </div>
-            <div className="dash-kpi-body">
-              <div className="dash-kpi-value">{PENDING_INVITES}</div>
-              <div className="dash-kpi-label">Pending Invitations</div>
-              <div className="dash-kpi-hint">{TOTAL_INVITATIONS} sent total</div>
-            </div>
-          </div>
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon gold">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{awaitingReview}</div>
+                  <div className="dash-kpi-label">Awaiting Lead Review</div>
+                  <div className="dash-kpi-hint">{inProgressSlots} still in progress</div>
+                </div>
+              </div>
 
-          <div className="dash-kpi">
-            <div className="dash-kpi-icon red">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-            </div>
-            <div className="dash-kpi-body">
-              <div className="dash-kpi-value">{ATTENTION_ITEMS.length}</div>
-              <div className="dash-kpi-label">Needs Attention</div>
-              <div className="dash-kpi-hint">{attentionCounts.high} urgent · {attentionCounts.medium} medium</div>
-            </div>
-          </div>
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon red">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{activeAttention.length}</div>
+                  <div className="dash-kpi-label">Needs Attention</div>
+                  <div className="dash-kpi-hint">{attentionCounts.high} urgent · {attentionCounts.medium} medium</div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon green">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="8" />
+                    <line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" />
+                    <line x1="2" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22" y2="12" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{totalMolecules}</div>
+                  <div className="dash-kpi-label">Total Molecules</div>
+                  <div className="dash-kpi-hint">{stateCounts.active} active · {stateCounts.draft} draft</div>
+                </div>
+              </div>
+
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon cyan">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{TOTAL_MEMBERS}</div>
+                  <div className="dash-kpi-label">Members</div>
+                  <div className="dash-kpi-hint">{MEMBER_ROLES.find(r => r.role === 'Lead')?.count ?? 0} leads · {MEMBER_ROLES.find(r => r.role === 'Viewer')?.count ?? 0} viewers</div>
+                </div>
+              </div>
+
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon gold">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{PENDING_INVITES}</div>
+                  <div className="dash-kpi-label">Pending Invitations</div>
+                  <div className="dash-kpi-hint">{TOTAL_INVITATIONS} sent total</div>
+                </div>
+              </div>
+
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon red">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{ATTENTION_ITEMS.length}</div>
+                  <div className="dash-kpi-label">Needs Attention</div>
+                  <div className="dash-kpi-hint">{attentionCounts.high} urgent · {attentionCounts.medium} medium</div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Charts — single card, tab to switch */}
-        <div className="dash-card">
-          <div className="dash-card-head dash-chart-head">
-            <div className="dash-chart-tabs" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={chartTab === 'pipeline'}
-                className={`dash-chart-tab${chartTab === 'pipeline' ? ' active' : ''}`}
-                onClick={() => setChartTab('pipeline')}
-              >
-                Molecule Pipeline
-                <span className="dash-chart-tab-count">{totalMolecules}</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={chartTab === 'members'}
-                className={`dash-chart-tab${chartTab === 'members' ? ' active' : ''}`}
-                onClick={() => setChartTab('members')}
-              >
-                Members by Role
-                <span className="dash-chart-tab-count">{TOTAL_MEMBERS}</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={chartTab === 'invitations'}
-                className={`dash-chart-tab${chartTab === 'invitations' ? ' active' : ''}`}
-                onClick={() => setChartTab('invitations')}
-              >
-                Invitations
-                <span className="dash-chart-tab-count">{TOTAL_INVITATIONS}</span>
-              </button>
+        {/* Charts / My Quadrants */}
+        {isStump ? (
+          <div className="dash-card">
+            <div className="dash-card-head">
+              <div>
+                <div className="dash-card-title">My Quadrants</div>
+                <div className="dash-card-sub">Quadrants assigned to you and their submission status</div>
+              </div>
+              <span className="dash-card-meta">{totalAssignedSlots} assigned</span>
             </div>
-            {chartTab === 'pipeline' && (
-              <button type="button" className="dash-card-link" onClick={() => router.push('/molecules')}>
-                View all
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
-            )}
+            <div className="dash-card-body">
+              {stumpMolecules.length === 0 || stumpAssigned.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+                  You don’t have any Quadrants assigned yet. Your Lead will assign one soon.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {stumpMolecules.flatMap(mol =>
+                    stumpAssigned.map(q => {
+                      const meta = QUAD_LABELS[q];
+                      const submitted = (stumpSubmittedByMol[mol.id] ?? []).includes(q);
+                      const status = submitted ? 'Awaiting Lead Review' : 'In Progress';
+                      const statusBg = submitted ? 'rgba(59,184,127,.10)' : 'rgba(255,171,0,.10)';
+                      const statusFg = submitted ? 'var(--success, #3BB87F)' : 'var(--gold, #FFAB00)';
+                      return (
+                        <button
+                          key={`${mol.id}-${q}`}
+                          type="button"
+                          onClick={() => router.push(`/molecules/${mol.id}/quadrant-${q}`)}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '40px 1fr auto auto',
+                            alignItems: 'center',
+                            gap: 14,
+                            padding: '12px 14px',
+                            border: '1px solid var(--border)',
+                            borderRadius: 10,
+                            background: 'transparent',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 36, height: 36, borderRadius: 8,
+                              background: meta.color, color: 'white',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 14, fontWeight: 700,
+                            }}
+                          >
+                            Q{meta.letter}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>
+                              {mol.name} · Q-{meta.letter} {meta.phase}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                              Artifact: {meta.artifact}
+                            </div>
+                          </div>
+                          <span
+                            style={{
+                              padding: '4px 10px', borderRadius: 999,
+                              background: statusBg, color: statusFg,
+                              fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+                            }}
+                          >
+                            {status}
+                          </span>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </button>
+                      );
+                    }),
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="dash-card-body">
-            {chartTab === 'pipeline' && (
-              <BarChart
-                total={totalMolecules}
-                rows={STATE_ORDER.map(s => ({
-                  label: MOLECULE_STATE_CONFIG[s].label,
-                  count: stateCounts[s],
-                  color: MOLECULE_STATE_CONFIG[s].color,
-                }))}
-              />
-            )}
-            {chartTab === 'members' && (
-              <BarChart
-                total={TOTAL_MEMBERS}
-                rows={MEMBER_ROLES.map(r => ({ label: r.role, count: r.count, color: r.color }))}
-              />
-            )}
-            {chartTab === 'invitations' && (
-              <BarChart
-                total={TOTAL_INVITATIONS}
-                rows={INVITATION_STATUS.map(s => ({ label: s.status, count: s.count, color: s.color }))}
-              />
-            )}
+        ) : (
+          <div className="dash-card">
+            <div className="dash-card-head dash-chart-head">
+              <div className="dash-chart-tabs" role="tablist">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={chartTab === 'pipeline'}
+                  className={`dash-chart-tab${chartTab === 'pipeline' ? ' active' : ''}`}
+                  onClick={() => setChartTab('pipeline')}
+                >
+                  Molecule Pipeline
+                  <span className="dash-chart-tab-count">{totalMolecules}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={chartTab === 'members'}
+                  className={`dash-chart-tab${chartTab === 'members' ? ' active' : ''}`}
+                  onClick={() => setChartTab('members')}
+                >
+                  Members by Role
+                  <span className="dash-chart-tab-count">{TOTAL_MEMBERS}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={chartTab === 'invitations'}
+                  className={`dash-chart-tab${chartTab === 'invitations' ? ' active' : ''}`}
+                  onClick={() => setChartTab('invitations')}
+                >
+                  Invitations
+                  <span className="dash-chart-tab-count">{TOTAL_INVITATIONS}</span>
+                </button>
+              </div>
+              {chartTab === 'pipeline' && (
+                <button type="button" className="dash-card-link" onClick={() => router.push('/molecules')}>
+                  View all
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <div className="dash-card-body">
+              {chartTab === 'pipeline' && (
+                <BarChart
+                  total={totalMolecules}
+                  rows={STATE_ORDER.map(s => ({
+                    label: MOLECULE_STATE_CONFIG[s].label,
+                    count: stateCounts[s],
+                    color: MOLECULE_STATE_CONFIG[s].color,
+                  }))}
+                />
+              )}
+              {chartTab === 'members' && (
+                <BarChart
+                  total={TOTAL_MEMBERS}
+                  rows={MEMBER_ROLES.map(r => ({ label: r.role, count: r.count, color: r.color }))}
+                />
+              )}
+              {chartTab === 'invitations' && (
+                <BarChart
+                  total={TOTAL_INVITATIONS}
+                  rows={INVITATION_STATUS.map(s => ({ label: s.status, count: s.count, color: s.color }))}
+                />
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Activity + Team online */}
         <div className="dash-grid-1">
@@ -338,12 +559,14 @@ export default function DashboardPage() {
               <div className="dash-card-head">
                 <div>
                   <div className="dash-card-title">Recent Activity</div>
-                  <div className="dash-card-sub">Workspace events across the past week</div>
+                  <div className="dash-card-sub">
+                    {isStump ? 'Latest events from your Sub-Stumps' : 'Workspace events across the past week'}
+                  </div>
                 </div>
                 <span className="dash-card-meta">Last 7 days</span>
               </div>
               <div className="dash-feed">
-                {AUDIT_FEED.map(item => (
+                {activityFeed.map(item => (
                   <div key={item.id} className="dash-feed-item">
                     <div className="dash-feed-icon">{FEED_ICONS[item.icon]}</div>
                     <div className="dash-feed-text">
@@ -364,15 +587,15 @@ export default function DashboardPage() {
             <div className="dash-card">
               <div className="dash-card-head">
                 <div>
-                  <div className="dash-card-title">Team Online</div>
-                  <div className="dash-card-sub">{onlineCount} of {ACTIVE_USERS.length} active now</div>
+                  <div className="dash-card-title">{isStump ? 'My Sub-Stumps' : 'Team Online'}</div>
+                  <div className="dash-card-sub">{onlineCount} of {teamRoster.length} active now</div>
                 </div>
                 <span className="dash-online-pulse">
                   <span /> live
                 </span>
               </div>
               <div className="dash-team-list">
-                {ACTIVE_USERS.filter(user => user.online).map(user => (
+                {teamRoster.filter(user => user.online).map(user => (
                   <div key={user.id} className="dash-team-item">
                     <div className="dash-team-av-wrap">
                       <div className="dash-team-av" style={{ background: user.gradient }}>

@@ -36,6 +36,8 @@ export function useRole() {
     roleLabel: ROLE_LABELS[role],
     isCreator: role === 'creator',
     isLead: role === 'lead',
+    isStump: role === 'stump',
+    isSubStump: role === 'sub-stump',
     canCreateMolecule: role === 'creator',
   };
 }

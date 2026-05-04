@@ -5,7 +5,15 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { getMolecule } from '@/lib/molecules';
-import { getCompletedQuads, getQuadMaxStep, isQuadUnlocked, type Quad } from '@/lib/progress';
+import {
+  getCompletedQuads,
+  getQuadMaxStep,
+  getStumpAssignedQuads,
+  getStumpSubmittedQuads,
+  isQuadUnlocked,
+  type Quad,
+} from '@/lib/progress';
+import { useRole } from '@/lib/useRole';
 
 type PillColor = 'gold' | 'blue' | 'red' | 'green';
 type QuadColor = 'red' | 'green' | 'gold' | 'blue';
@@ -51,6 +59,14 @@ const TEAM: TeamMember[] = [
   { initials: 'DK', gradient: 'linear-gradient(135deg, #EC4899, #F9A8D4)', name: 'David Kim' },
   { initials: 'JB', gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)', name: 'Jenna Brooks' },
   { initials: 'LW', gradient: 'linear-gradient(135deg, #0F172A, #334155)', name: 'Liam Walker' },
+];
+
+// Stump's view of the team is restricted to their Sub-Stumps.
+const STUMP_TEAM: TeamMember[] = [
+  { initials: 'JT', gradient: 'linear-gradient(135deg, #38BDF8, #7DD3FC)', name: 'James Thompson' },
+  { initials: 'AR', gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)', name: 'Aisha Reddy' },
+  { initials: 'CM', gradient: 'linear-gradient(135deg, #EF4444, #F87171)', name: 'Carlos Mendez' },
+  { initials: 'PN', gradient: 'linear-gradient(135deg, #22C55E, #4ADE80)', name: 'Priya Nair' },
 ];
 
 const BookIcon = (
@@ -252,8 +268,11 @@ export default function MoleculeOverviewPage() {
   const router = useRouter();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
+  const { isStump, roleLabel } = useRole();
   const [completedQuads, setCompletedQuads] = useState<Quad[]>([]);
   const [maxSteps, setMaxSteps] = useState<Record<Quad, number>>({ a: 0, b: 0, c: 0, d: 0 });
+  const [stumpAssigned, setStumpAssigned] = useState<Quad[]>([]);
+  const [stumpSubmitted, setStumpSubmitted] = useState<Quad[]>([]);
   const [infoOpen, setInfoOpen] = useState(false);
   const [quadModal, setQuadModal] = useState<Quad | null>(null);
 
@@ -325,7 +344,13 @@ export default function MoleculeOverviewPage() {
       c: getQuadMaxStep(id, 'c'),
       d: getQuadMaxStep(id, 'd'),
     });
+    setStumpAssigned(getStumpAssignedQuads());
+    setStumpSubmitted(getStumpSubmittedQuads(id));
   }, [id]);
+
+  // Stumps only see Quadrants assigned to them as unlocked.
+  const isQuadAccessible = (q: Quad) =>
+    isStump ? stumpAssigned.includes(q) : isQuadUnlocked(q, completedQuads);
 
   if (!mol) return null;
 
@@ -350,6 +375,14 @@ export default function MoleculeOverviewPage() {
           <span className="sep">›</span>
           <span className="cur">{mol.name} — Overview</span>
         </div>
+        <div className="topbar-right">
+          <span className="creator-tag">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            {roleLabel}
+          </span>
+        </div>
       </div>
 
       <div className="creator-content">
@@ -361,39 +394,47 @@ export default function MoleculeOverviewPage() {
             <div className="mol-card-title-group">
               <h1 className="mol-card-name">{mol.name}</h1>
               <span className="mol-card-badge">Event</span>
-              <button type="button" className="mol-card-edit-btn" onClick={openEditMolModal} title="Edit Molecule">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                </svg>
-              </button>
+              {!isStump && (
+                <button type="button" className="mol-card-edit-btn" onClick={openEditMolModal} title="Edit Molecule">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                  </svg>
+                </button>
+              )}
             </div>
             <div className="mol-card-actions">
-              <button type="button" className="mol-card-action" onClick={openWfModal} title="Edit Labels">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
-                </svg>
-              </button>
-              <button type="button" className="mol-card-action" onClick={openLeadModal} title="Change Lead">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                </svg>
-              </button>
+              {!isStump && (
+                <button type="button" className="mol-card-action" onClick={openWfModal} title="Edit Labels">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+                  </svg>
+                </button>
+              )}
+              {!isStump && (
+                <button type="button" className="mol-card-action" onClick={openLeadModal} title="Change Lead">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </button>
+              )}
               <div className="mol-card-team">
                 <div className="mol-card-avatars">
-                  {TEAM.slice(0, 4).map(m => (
+                  {(isStump ? STUMP_TEAM : TEAM).slice(0, 4).map(m => (
                     <div key={m.initials} className="mol-card-av" style={{ background: m.gradient }} title={m.name}>
                       {m.initials}
                     </div>
                   ))}
-                  {TEAM.length > 4 && (
-                    <div className="mol-card-av mol-card-av--more">+{TEAM.length - 4}</div>
+                  {(isStump ? STUMP_TEAM : TEAM).length > 4 && (
+                    <div className="mol-card-av mol-card-av--more">+{(isStump ? STUMP_TEAM : TEAM).length - 4}</div>
                   )}
                 </div>
-                <Link href={`/molecules/${id}/members`} className="mol-card-assign">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </Link>
+                {!isStump && (
+                  <Link href={`/molecules/${id}/members`} className="mol-card-assign">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </Link>
+                )}
               </div>
             </div>
           </div>
@@ -540,7 +581,7 @@ export default function MoleculeOverviewPage() {
                   {QUADS.slice(0, 2).map(q => (
                     <QuadCard
                       key={q.code} {...q}
-                      disabled={!isQuadUnlocked(q.quad, completedQuads)}
+                      disabled={!isQuadAccessible(q.quad)}
                       maxStep={maxSteps[q.quad]}
                       onPillClick={step => goToStep(q, step)}
                     />
@@ -551,7 +592,7 @@ export default function MoleculeOverviewPage() {
                   {QUADS.slice(2).map(q => (
                     <QuadCard
                       key={q.code} {...q}
-                      disabled={!isQuadUnlocked(q.quad, completedQuads)}
+                      disabled={!isQuadAccessible(q.quad)}
                       maxStep={maxSteps[q.quad]}
                       onPillClick={step => goToStep(q, step)}
                     />

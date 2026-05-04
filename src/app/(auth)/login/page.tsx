@@ -11,7 +11,7 @@ type Role = UserRole;
 const ROLES: { key: Role; label: string; enabled: boolean }[] = [
   { key: 'creator', label: 'Creator', enabled: true },
   { key: 'lead', label: 'Lead', enabled: true },
-  { key: 'stump', label: 'Stump', enabled: false },
+  { key: 'stump', label: 'Stump', enabled: true },
   { key: 'sub-stump', label: 'Sub-Stump', enabled: false },
   { key: 'admin', label: 'Platform Admin', enabled: false },
 ];

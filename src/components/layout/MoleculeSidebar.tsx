@@ -4,7 +4,16 @@ import Link from 'next/link';
 import { usePathname, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getMolecule } from '@/lib/molecules';
-import { getCompletedQuads, getQuadMaxStep, isQuadUnlocked, TOTAL_STEPS, type Quad } from '@/lib/progress';
+import {
+  getCompletedQuads,
+  getQuadMaxStep,
+  getStumpAssignedQuads,
+  getStumpSubmittedQuads,
+  isQuadUnlocked,
+  TOTAL_STEPS,
+  type Quad,
+} from '@/lib/progress';
+import { useRole } from '@/lib/useRole';
 
 type ViewKey = 'overview' | 'members' | 'decisions' | 'requests' | 'finalized';
 
@@ -87,8 +96,11 @@ export default function MoleculeSidebar() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
+  const { isStump, roleLabel } = useRole();
   const [completed, setCompleted] = useState<Quad[]>([]);
   const [maxSteps, setMaxSteps] = useState<Record<Quad, number>>({ a: 0, b: 0, c: 0, d: 0 });
+  const [stumpAssigned, setStumpAssigned] = useState<Quad[]>([]);
+  const [stumpSubmitted, setStumpSubmitted] = useState<Quad[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -101,20 +113,25 @@ export default function MoleculeSidebar() {
       c: getQuadMaxStep(id, 'c'),
       d: getQuadMaxStep(id, 'd'),
     });
+    setStumpAssigned(getStumpAssignedQuads());
+    setStumpSubmitted(getStumpSubmittedQuads(id));
   }, [id, pathname]);
 
   if (!mol) return null;
 
   const base = `/molecules/${id}`;
 
-  // Per-quadrant progress: 100% when completed, otherwise scaled by highest
-  // step reached (step 1 just entered = 0%, step 5 reached but not submitted = 80%).
+  // Per-quadrant progress: 100% when completed (or submitted by Stump),
+  // otherwise scaled by highest step reached.
   function quadPct(q: Quad): number {
     if (completed.includes(q)) return 100;
+    if (isStump && stumpSubmitted.includes(q)) return 100;
     const m = maxSteps[q];
     return Math.max(0, (m - 1)) * (100 / (TOTAL_STEPS - 1));
   }
-  const overallPct = Math.round(completed.length * 25);
+  const overallPct = isStump
+    ? (stumpAssigned.length === 0 ? 0 : Math.round((stumpSubmitted.filter(q => stumpAssigned.includes(q)).length / stumpAssigned.length) * 100))
+    : Math.round(completed.length * 25);
 
   const views: ViewItem[] = [
     {
@@ -174,7 +191,8 @@ export default function MoleculeSidebar() {
       <div className="sidebar-nav">
         <div className="snl">Molecule View</div>
 
-        {views.map(v => {
+        {/* Stumps don't get the Finalized View — that's a Lead/Creator wrap-up. */}
+        {(isStump ? views.filter(v => v.key !== 'finalized') : views).map(v => {
           const href = base + v.slug;
           const active = v.slug === '' ? pathname === base : pathname === href || pathname.startsWith(href + '/');
           // Finalized View is locked until every quadrant is completed.
@@ -223,7 +241,10 @@ export default function MoleculeSidebar() {
         {quadrants.map(q => {
           const href = base + q.slug;
           const active = pathname === href;
-          const unlocked = isQuadUnlocked(q.quad, completed);
+          const unlocked = isStump ? stumpAssigned.includes(q.quad) : isQuadUnlocked(q.quad, completed);
+          const lockTitle = isStump
+            ? 'Locked — this Quadrant is not assigned to you'
+            : `Complete Quadrant ${String.fromCharCode(q.quad.charCodeAt(0) - 1).toUpperCase()} to unlock`;
 
           if (!unlocked) {
             return (
@@ -231,7 +252,7 @@ export default function MoleculeSidebar() {
                 key={q.slug}
                 className={`mol-nav-item ${q.cls} mol-nav-locked`}
                 aria-disabled="true"
-                title={`Complete Quadrant ${String.fromCharCode(q.quad.charCodeAt(0) - 1).toUpperCase()} to unlock`}
+                title={lockTitle}
               >
                 <div className="nv-icon" style={{ color: 'rgba(255,255,255,.3)' }}>{q.icon}</div>
                 <div className="nv-text">
@@ -277,7 +298,9 @@ export default function MoleculeSidebar() {
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
           </svg>
-          Creator access. Full control over objectives, assignments, and drill-downs.
+          {isStump
+            ? `${roleLabel} access. Work on assigned Quadrants and submit to the Lead for review.`
+            : `${roleLabel} access. Full control over objectives, assignments, and drill-downs.`}
         </div>
       </div>
     </nav>
