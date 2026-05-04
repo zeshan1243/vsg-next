@@ -1414,8 +1414,23 @@ html, body {
   font-family: var(--font-sans);
   font-size: 14px; font-weight: 500; color: var(--ink);
   cursor: pointer; transition: all .18s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
 }
 .fc-btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+/* Compact secondary — pairs with .btn-primary-sm / .btn-gold-sm in topbars and card headers. */
+.fc-btn-secondary.fc-btn-secondary-sm,
+.btn-secondary-sm {
+  height: 38px; padding: 0 16px;
+  border: 1.5px solid var(--border); border-radius: 9px;
+  background: var(--surface);
+  font-family: var(--font-sans);
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  cursor: pointer; transition: all .18s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+}
+.btn-secondary-sm:hover,
+.fc-btn-secondary.fc-btn-secondary-sm:hover { border-color: var(--gold); color: var(--gold); }
 
 .fc-btn-primary {
   height: 44px; padding: 0 28px;

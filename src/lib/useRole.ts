@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-export type UserRole = 'creator' | 'lead' | 'stump' | 'sub-stump' | 'admin';
+export type UserRole = 'creator' | 'lead' | 'stump' | 'sub-stump' | 'admin' | 'super-admin';
 
 const ROLE_LABELS: Record<UserRole, string> = {
   'creator': 'Creator',
@@ -10,6 +10,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
   'stump': 'Stump',
   'sub-stump': 'Sub-Stump',
   'admin': 'Platform Admin',
+  'super-admin': 'Super Admin',
 };
 
 export function useRole() {
@@ -38,6 +39,8 @@ export function useRole() {
     isLead: role === 'lead',
     isStump: role === 'stump',
     isSubStump: role === 'sub-stump',
+    isPlatformAdmin: role === 'admin',
+    isSuperAdmin: role === 'super-admin',
     canCreateMolecule: role === 'creator',
   };
 }

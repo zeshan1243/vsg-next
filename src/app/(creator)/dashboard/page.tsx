@@ -162,6 +162,51 @@ const STUMP_AUDIT_FEED = [
   { id: 7, action: 'approved',  user: 'James Thompson', target: 'Partner shortlist',    time: '2d ago',     icon: 'check-circle' },
 ];
 
+// ── Super Admin platform data ───────────────────────────────────────────
+interface PlatformCreator {
+  id: string;
+  name: string;
+  email: string;
+  initials: string;
+  gradient: string;
+  molecules: number;
+  members: number;
+  activeMolecules: number;
+  status: 'active' | 'idle';
+  joined: string;
+}
+
+const PLATFORM_CREATORS: PlatformCreator[] = [
+  { id: 'c1', name: 'Sarah Kaplan',  email: 'sarah@vsg.io',   initials: 'SK', gradient: 'linear-gradient(135deg, #FFAB00, #FFD54F)', molecules: 5, members: 24, activeMolecules: 3, status: 'active', joined: '2024-01-15' },
+  { id: 'c2', name: 'Daniel Park',   email: 'daniel@vsg.io',  initials: 'DP', gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)', molecules: 3, members: 12, activeMolecules: 2, status: 'active', joined: '2024-03-04' },
+  { id: 'c3', name: 'Priya Nair',    email: 'priya@vsg.io',   initials: 'PN', gradient: 'linear-gradient(135deg, #22C55E, #4ADE80)', molecules: 4, members: 18, activeMolecules: 1, status: 'active', joined: '2024-04-22' },
+  { id: 'c4', name: 'Aisha Patel',   email: 'aisha@vsg.io',   initials: 'AP', gradient: 'linear-gradient(135deg, #EC4899, #F9A8D4)', molecules: 2, members: 8,  activeMolecules: 0, status: 'idle',   joined: '2024-06-10' },
+  { id: 'c5', name: 'Tomás Alvarez', email: 'tomas@vsg.io',   initials: 'TA', gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)', molecules: 6, members: 31, activeMolecules: 4, status: 'active', joined: '2023-11-02' },
+];
+
+const PLATFORM_ADMINS = [
+  { id: 'pa1', name: 'Jordan Lee',     initials: 'JL', role: 'Platform Admin', gradient: 'linear-gradient(135deg, #0F172A, #334155)', online: true  },
+  { id: 'pa2', name: 'Maya Chen',      initials: 'MC', role: 'Platform Admin', gradient: 'linear-gradient(135deg, #EF4444, #F87171)', online: true  },
+  { id: 'pa3', name: 'Riya Mehta',     initials: 'RM', role: 'Platform Admin', gradient: 'linear-gradient(135deg, #38BDF8, #7DD3FC)', online: false },
+];
+
+// System-level activity feed for Super Admin.
+const SUPERADMIN_AUDIT_FEED = [
+  { id: 1, action: 'invited',   user: 'Super Admin',  target: 'New Creator (yara@vsg.io)',          time: '20 min ago', icon: 'mail'         },
+  { id: 2, action: 'created',   user: 'Sarah Kaplan', target: 'Brand Refresh 2026',                 time: '1h ago',     icon: 'plus'         },
+  { id: 3, action: 'approved',  user: 'Jordan Lee',   target: 'Tomás Alvarez · Q4 Roadmap',         time: '3h ago',     icon: 'check-circle' },
+  { id: 4, action: 'joined',    user: 'Maya Chen',    target: 'Platform admins',                    time: '1d ago',     icon: 'user-plus'    },
+  { id: 5, action: 'completed', user: 'Daniel Park',  target: 'Premier Wedding Expo · Quadrant A',  time: '1d ago',     icon: 'check'        },
+  { id: 6, action: 'updated',   user: 'Priya Nair',   target: 'Community Outreach Plan (objective)', time: '2d ago',    icon: 'edit'         },
+];
+
+// Attention items for Super Admin (system-level concerns).
+const SUPERADMIN_ATTENTION_ITEMS: AttentionItem[] = [
+  { id: 301, type: 'pending-invitation', title: 'Creator Invitation Pending',     molecule: 'Platform',                moleculeId: 'platform',                description: 'Yara Sayegh hasn\'t accepted her Creator invitation (5 days).', time: '5d ago',  priority: 'medium' },
+  { id: 302, type: 'lead-substitute',    title: 'Idle Creator',                   molecule: 'Aisha Patel\'s workspace', moleculeId: 'platform',                description: 'No molecule activity for 30+ days — consider reaching out.',  time: '30d',     priority: 'low'    },
+  { id: 303, type: 'flag-raised',        title: 'Stalled Molecule',               molecule: 'Q3 Product Launch',        moleculeId: 'q3-product-launch',       description: 'Marcus Reeves\'s molecule has been paused for 12 days.',     time: '12d ago', priority: 'high'   },
+];
+
 // Mock attention items for a Sub-Stump — multiple molecules with different Stumps.
 const SUBSTUMP_ATTENTION_ITEMS: AttentionItem[] = [
   { id: 201, type: 'request-pending', title: 'Awaiting Stump Approval', molecule: 'Premier Wedding Expo',    moleculeId: 'premier-wedding-expo',    description: 'Q-A OKRs submitted to Maria Chen for review.',     time: '15m ago', priority: 'medium' },
@@ -178,7 +223,9 @@ const STUMP_ATTENTION_ITEMS: AttentionItem[] = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { roleLabel, canCreateMolecule, isStump, isSubStump } = useRole();
+  const { roleLabel, canCreateMolecule, isStump, isSubStump, isSuperAdmin, isPlatformAdmin } = useRole();
+  // Both admin tiers see the platform-wide dashboard; only Super Admin can invite.
+  const isPlatformView = isSuperAdmin || isPlatformAdmin;
   const [today, setToday] = useState('');
   const [chartTab, setChartTab] = useState<ChartTab>('pipeline');
   const [attentionFilter, setAttentionFilter] = useState<'all' | Priority>('all');
@@ -249,11 +296,21 @@ export default function DashboardPage() {
       .filter(s => (seen.has(s.name) ? false : (seen.add(s.name), true)));
   })();
 
-  const activeAttention = isSubStump
-    ? SUBSTUMP_ATTENTION_ITEMS
-    : isStump
-      ? STUMP_ATTENTION_ITEMS
-      : ATTENTION_ITEMS;
+  const activeAttention = isPlatformView
+    ? SUPERADMIN_ATTENTION_ITEMS
+    : isSubStump
+      ? SUBSTUMP_ATTENTION_ITEMS
+      : isStump
+        ? STUMP_ATTENTION_ITEMS
+        : ATTENTION_ITEMS;
+
+  // Super Admin platform aggregates.
+  const totalCreators = PLATFORM_CREATORS.length;
+  const activeCreators = PLATFORM_CREATORS.filter(c => c.status === 'active').length;
+  const totalPlatformMolecules = PLATFORM_CREATORS.reduce((sum, c) => sum + c.molecules, 0);
+  const totalPlatformActiveMolecules = PLATFORM_CREATORS.reduce((sum, c) => sum + c.activeMolecules, 0);
+  const totalPlatformMembers = PLATFORM_CREATORS.reduce((sum, c) => sum + c.members, 0);
+  const totalPlatformAdmins = PLATFORM_ADMINS.length;
   const attentionCounts: Record<'all' | Priority, number> = {
     all:    activeAttention.length,
     high:   activeAttention.filter(i => i.priority === 'high').length,
@@ -285,13 +342,19 @@ export default function DashboardPage() {
       online: s.online,
     };
   });
-  const teamRoster = isSubStump
-    ? subStumpRoster
-    : isStump
-      ? STUMP_SUBSTUMPS
-      : ACTIVE_USERS;
+  const teamRoster = isPlatformView
+    ? PLATFORM_ADMINS
+    : isSubStump
+      ? subStumpRoster
+      : isStump
+        ? STUMP_SUBSTUMPS
+        : ACTIVE_USERS;
   const onlineCount = teamRoster.filter(u => u.online).length;
-  const activityFeed = isStump ? STUMP_AUDIT_FEED : AUDIT_FEED;
+  const activityFeed = isPlatformView
+    ? SUPERADMIN_AUDIT_FEED
+    : isStump
+      ? STUMP_AUDIT_FEED
+      : AUDIT_FEED;
 
   // ─── Reusable card JSX so the same content can be placed in different
   // layouts depending on the role.
@@ -299,7 +362,7 @@ export default function DashboardPage() {
     <div className="dash-card">
       <div className="dash-card-head">
         <div>
-          <div className="dash-card-title">{isSubStump ? 'My Stumps' : isStump ? 'My Sub-Stumps' : 'Team Online'}</div>
+          <div className="dash-card-title">{isPlatformView ? 'Platform Admins' : isSubStump ? 'My Stumps' : isStump ? 'My Sub-Stumps' : 'Team Online'}</div>
           <div className="dash-card-sub">{onlineCount} of {teamRoster.length} active now</div>
         </div>
         <span className="dash-online-pulse">
@@ -307,9 +370,9 @@ export default function DashboardPage() {
         </span>
       </div>
       <div className="dash-team-list">
-        {/* Sub-Stumps see every Stump they report to (online or not).
+        {/* Sub-Stumps and Super Admins see every member of the roster (online or not).
             Other roles only see online teammates. */}
-        {(isSubStump ? teamRoster : teamRoster.filter(user => user.online)).map(user => (
+        {((isSubStump || isPlatformView) ? teamRoster : teamRoster.filter(user => user.online)).map(user => (
           <div key={user.id} className="dash-team-item">
             <div className="dash-team-av-wrap">
               <div className="dash-team-av" style={{ background: user.gradient }}>
@@ -434,6 +497,18 @@ export default function DashboardPage() {
               New Molecule
             </button>
           )}
+          {isSuperAdmin && (
+            <button
+              className="btn-primary-sm"
+              type="button"
+              onClick={() => router.push('/users?invite=creator')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Invite User
+            </button>
+          )}
         </div>
       </div>
 
@@ -444,25 +519,40 @@ export default function DashboardPage() {
         <div className="dash-hero">
           <div>
             <div className="dash-hero-eyebrow">
-              {isSubStump || isStump ? `Welcome, ${roleLabel}` : 'Good morning, Sarah'}
+              {isPlatformView || isSubStump || isStump ? `Welcome, ${roleLabel}` : 'Good morning, Sarah'}
             </div>
             <div className="dash-hero-title">
-              {isSubStump
-                ? 'Execute every assigned Quadrant step by step.'
-                : isStump
-                  ? 'Drive your assigned Quadrants to completion.'
-                  : 'Your workspace is performing well.'}
+              {isPlatformView
+                ? 'Platform-wide oversight across every Creator and molecule.'
+                : isSubStump
+                  ? 'Execute every assigned Quadrant step by step.'
+                  : isStump
+                    ? 'Drive your assigned Quadrants to completion.'
+                    : 'Your workspace is performing well.'}
             </div>
             <div className="dash-hero-sub">
-              {isSubStump
-                ? `${subStumpTotalQuads} assigned Quadrant${subStumpTotalQuads === 1 ? '' : 's'} across ${subStumpAssignments.length} molecule${subStumpAssignments.length === 1 ? '' : 's'} · ${subStumpStumps.length} Stump${subStumpStumps.length === 1 ? '' : 's'} reviewing · ${subStumpSubmittedCount}/${subStumpTotalSteps} steps submitted`
-                : isStump
-                  ? `${totalAssignedSlots} assigned Quadrant${totalAssignedSlots === 1 ? '' : 's'} · ${awaitingReview} awaiting Lead review · ${onlineCount} of ${teamRoster.length} Sub-Stumps online`
-                  : `${stateCounts.active} active molecules · ${onlineCount} of ${teamRoster.length} teammates online`}
+              {isPlatformView
+                ? `${totalCreators} Creator${totalCreators === 1 ? '' : 's'} (${activeCreators} active) · ${totalPlatformMolecules} molecules · ${totalPlatformAdmins} Platform Admin${totalPlatformAdmins === 1 ? '' : 's'} · ${onlineCount} online`
+                : isSubStump
+                  ? `${subStumpTotalQuads} assigned Quadrant${subStumpTotalQuads === 1 ? '' : 's'} across ${subStumpAssignments.length} molecule${subStumpAssignments.length === 1 ? '' : 's'} · ${subStumpStumps.length} Stump${subStumpStumps.length === 1 ? '' : 's'} reviewing · ${subStumpSubmittedCount}/${subStumpTotalSteps} steps submitted`
+                  : isStump
+                    ? `${totalAssignedSlots} assigned Quadrant${totalAssignedSlots === 1 ? '' : 's'} · ${awaitingReview} awaiting Lead review · ${onlineCount} of ${teamRoster.length} Sub-Stumps online`
+                    : `${stateCounts.active} active molecules · ${onlineCount} of ${teamRoster.length} teammates online`}
             </div>
           </div>
           <div className="dash-hero-meta">
-            {isSubStump ? (
+            {isPlatformView ? (
+              <>
+                <div className="dash-hero-stat">
+                  <div className="dash-hero-stat-val">{totalPlatformActiveMolecules}</div>
+                  <div className="dash-hero-stat-label">Active</div>
+                </div>
+                <div className="dash-hero-stat">
+                  <div className="dash-hero-stat-val">{totalPlatformMembers}</div>
+                  <div className="dash-hero-stat-label">Members</div>
+                </div>
+              </>
+            ) : isSubStump ? (
               <>
                 <div className="dash-hero-stat">
                   <div className="dash-hero-stat-val">{subStumpSubmittedCount}</div>
@@ -501,7 +591,65 @@ export default function DashboardPage() {
 
         {/* KPI strip */}
         <div className="dash-kpis">
-          {isSubStump ? (
+          {isPlatformView ? (
+            <>
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon green">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="8.5" cy="7" r="4" />
+                    <path d="M20 8v6M23 11h-6" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{totalCreators}</div>
+                  <div className="dash-kpi-label">Creators</div>
+                  <div className="dash-kpi-hint">{activeCreators} active · {totalCreators - activeCreators} idle</div>
+                </div>
+              </div>
+
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon cyan">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="2" /><circle cx="12" cy="4" r="2" /><circle cx="12" cy="20" r="2" />
+                    <circle cx="4" cy="12" r="2" /><circle cx="20" cy="12" r="2" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{totalPlatformMolecules}</div>
+                  <div className="dash-kpi-label">Molecules</div>
+                  <div className="dash-kpi-hint">{totalPlatformActiveMolecules} active across the platform</div>
+                </div>
+              </div>
+
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon gold">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2 4 6v6c0 5 3.5 9.5 8 10 4.5-.5 8-5 8-10V6l-8-4z" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{totalPlatformAdmins}</div>
+                  <div className="dash-kpi-label">Platform Admins</div>
+                  <div className="dash-kpi-hint">{PLATFORM_ADMINS.filter(a => a.online).length} online now</div>
+                </div>
+              </div>
+
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon red">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{activeAttention.length}</div>
+                  <div className="dash-kpi-label">System Alerts</div>
+                  <div className="dash-kpi-hint">{attentionCounts.high} urgent · {attentionCounts.medium} medium</div>
+                </div>
+              </div>
+            </>
+          ) : isSubStump ? (
             <>
               <div className="dash-kpi">
                 <div className="dash-kpi-icon green">
@@ -676,8 +824,83 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Charts / My Quadrant(s) */}
-        {isSubStump ? (
+        {/* Charts / Creators / My Quadrant(s) */}
+        {isPlatformView ? (
+          <div className="dash-card">
+            <div className="dash-card-head">
+              <div>
+                <div className="dash-card-title">Creators</div>
+                <div className="dash-card-sub">Every Creator on the platform and their molecules</div>
+              </div>
+              <span className="dash-card-meta">{totalCreators} total · {activeCreators} active</span>
+            </div>
+            <div className="dash-card-body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {PLATFORM_CREATORS.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => router.push(`/users?focus=${encodeURIComponent(c.email)}`)}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '40px 1fr auto auto auto',
+                      alignItems: 'center',
+                      gap: 14,
+                      padding: '12px 14px',
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 36, height: 36, borderRadius: '50%',
+                        background: c.gradient, color: 'white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 13, fontWeight: 700,
+                      }}
+                    >
+                      {c.initials}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>
+                        {c.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                        {c.email} · joined {new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(new Date(c.joined))}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 14, paddingRight: 12, borderRight: '1px solid var(--border)' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)' }}>{c.molecules}</div>
+                        <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Molecules</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--navy)' }}>{c.members}</div>
+                        <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Users</div>
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        padding: '4px 10px', borderRadius: 999,
+                        background: c.status === 'active' ? 'rgba(59,184,127,.10)' : 'rgba(100,116,139,.10)',
+                        color: c.status === 'active' ? 'var(--success, #3BB87F)' : 'var(--muted)',
+                        fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+                      }}
+                    >
+                      {c.status === 'active' ? 'Active' : 'Idle'}
+                    </span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : isSubStump ? (
           <div className="dash-card">
             <div className="dash-card-head">
               <div>
@@ -949,9 +1172,11 @@ export default function DashboardPage() {
                     <div>
                       <div className="dash-card-title">Recent Activity</div>
                       <div className="dash-card-sub">
-                        {isStump
-                          ? 'Latest events from your Sub-Stumps'
-                          : 'Workspace events across the past week'}
+                        {isPlatformView
+                          ? 'Platform-wide activity across every Creator and admin'
+                          : isStump
+                            ? 'Latest events from your Sub-Stumps'
+                            : 'Workspace events across the past week'}
                       </div>
                     </div>
                     <span className="dash-card-meta">Last 7 days</span>

@@ -269,7 +269,10 @@ export default function MoleculeOverviewPage() {
   const router = useRouter();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
-  const { isStump, isSubStump, roleLabel } = useRole();
+  const { isStump, isSubStump, isSuperAdmin, isPlatformAdmin, roleLabel } = useRole();
+  const isPlatformView = isSuperAdmin || isPlatformAdmin;
+  // Super Admin and Platform Admin both read everything but cannot edit anything.
+  const readOnly = isStump || isSubStump || isPlatformView;
   const [completedQuads, setCompletedQuads] = useState<Quad[]>([]);
   const [maxSteps, setMaxSteps] = useState<Record<Quad, number>>({ a: 0, b: 0, c: 0, d: 0 });
   const [stumpAssigned, setStumpAssigned] = useState<Quad[]>([]);
@@ -352,12 +355,15 @@ export default function MoleculeOverviewPage() {
   }, [id]);
 
   // Stumps and Sub-Stumps only see their assigned Quadrants as unlocked.
+  // Super Admins and Platform Admins always see every Quadrant unlocked (read-only).
   const isQuadAccessible = (q: Quad) =>
-    isSubStump
-      ? subStumpAssigned.includes(q)
-      : isStump
-        ? stumpAssigned.includes(q)
-        : isQuadUnlocked(q, completedQuads);
+    isPlatformView
+      ? true
+      : isSubStump
+        ? subStumpAssigned.includes(q)
+        : isStump
+          ? stumpAssigned.includes(q)
+          : isQuadUnlocked(q, completedQuads);
 
   if (!mol) return null;
 
@@ -401,7 +407,7 @@ export default function MoleculeOverviewPage() {
             <div className="mol-card-title-group">
               <h1 className="mol-card-name">{mol.name}</h1>
               <span className="mol-card-badge">Event</span>
-              {!isStump && !isSubStump && (
+              {!readOnly && (
                 <button type="button" className="mol-card-edit-btn" onClick={openEditMolModal} title="Edit Molecule">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
@@ -410,14 +416,14 @@ export default function MoleculeOverviewPage() {
               )}
             </div>
             <div className="mol-card-actions">
-              {!isStump && !isSubStump && (
+              {!readOnly && (
                 <button type="button" className="mol-card-action" onClick={openWfModal} title="Edit Labels">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
                   </svg>
                 </button>
               )}
-              {!isStump && !isSubStump && (
+              {!readOnly && (
                 <button type="button" className="mol-card-action" onClick={openLeadModal} title="Change Lead">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -427,7 +433,7 @@ export default function MoleculeOverviewPage() {
               {!isSubStump && (
                 <div className="mol-card-team">
                   <div className="mol-card-avatars">
-                    {(isStump ? STUMP_TEAM : TEAM).slice(0, 4).map(m => (
+                    {(isSuperAdmin ? TEAM : isStump ? STUMP_TEAM : TEAM).slice(0, 4).map(m => (
                       <div key={m.initials} className="mol-card-av" style={{ background: m.gradient }} title={m.name}>
                         {m.initials}
                       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getMolecule } from '@/lib/molecules';
 import {
@@ -263,13 +263,21 @@ function nextNum(items: { number: string }[], prefix = ''): string {
 export default function QuadrantFlow({ quad }: { quad: Quad }) {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialStep = (() => {
+    const raw = searchParams?.get('step');
+    const n = raw ? Number.parseInt(raw, 10) : 1;
+    return Number.isFinite(n) ? Math.min(TOTAL_STEPS, Math.max(1, n)) : 1;
+  })();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
-  const { isStump, isSubStump, roleLabel } = useRole();
+  const { isStump, isSubStump, isSuperAdmin, isPlatformAdmin, roleLabel } = useRole();
+  // Super Admin and Platform Admin both get full read-access but no editing.
+  const viewOnly = isSuperAdmin || isPlatformAdmin;
 
   const [activeTab, setActiveTab] = useState<TabId>('vendors');
   const [tabSteps, setTabSteps] = useState<Record<TabId, number>>({
-    vendors: 1, partners: 1, location: 1, attendance: 1,
+    vendors: initialStep, partners: initialStep, location: initialStep, attendance: initialStep,
   });
   const [tabs, setTabs] = useState<Record<TabId, TabContent>>(() => makeInitialTabs(quad));
   const [draft, setDraft] = useState('');
@@ -593,13 +601,29 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
         <div className="qa-title-row">
           <h1 className="qa-title">{headingLabel}</h1>
           <div className={`qa-step-indicator quad-${quad}`}>
-            {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(n => (
-              <span
-                key={n}
-                className={`qa-step-dot${n === step ? ' active' : ''}${n < step ? ' done' : ''}`}
-                data-step={n}
-              />
-            ))}
+            {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map(n => {
+              const dot = (
+                <span
+                  className={`qa-step-dot${n === step ? ' active' : ''}${n < step ? ' done' : ''}`}
+                  data-step={n}
+                />
+              );
+              // Super Admins (view-only) can jump to any step directly.
+              return viewOnly ? (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setTabSteps(prev => ({ ...prev, [activeTab]: n }))}
+                  style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                  aria-label={`Jump to step ${n}`}
+                  title={`Step ${n}`}
+                >
+                  {dot}
+                </button>
+              ) : (
+                <span key={n}>{dot}</span>
+              );
+            })}
             <span className="qa-step-text">Step {step} of {TOTAL_STEPS}</span>
           </div>
         </div>
@@ -620,8 +644,8 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
         </div>
 
         {/* Assignment widget — Lead picks a Stump, Stump picks a Sub-Stump.
-            Sub-Stumps don't assign anyone, so the bar is hidden for them. */}
-        {!isSubStump && (assignedStump || step === 1) && (
+            Hidden for Sub-Stumps (no one to assign) and Super Admins (read-only). */}
+        {!isSubStump && !viewOnly && (assignedStump || step === 1) && (
           <div className="qa-stump-bar">
             <span className="qa-stump-bar-label">{isStump ? 'My Sub-Stump' : 'My Stump'}</span>
             {assignedStump ? (
@@ -647,7 +671,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
           <div className="qa-main">
             <div className="qa-obj-head">
               <div className="qa-obj-badge">OBJ</div>
-              {quad === 'a' && step === 1 && editingObjective && !isStump && !isSubStump ? (
+              {quad === 'a' && step === 1 && editingObjective && !isStump && !isSubStump && !viewOnly ? (
                 <input
                   className="qa-obj-input"
                   value={objectiveDraft}
@@ -665,7 +689,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
               ) : (
                 <div className="qa-obj-title">
                   {tab.objective}
-                  {quad === 'a' && step === 1 && !isStump && !isSubStump && (
+                  {quad === 'a' && step === 1 && !isStump && !isSubStump && !viewOnly && (
                     <button
                       type="button"
                       className="qa-obj-edit-btn"
@@ -836,7 +860,25 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
               </div>
             )}
 
+            {/* Super Admin — read-only banner instead of a Submit action */}
+            {viewOnly && (
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  margin: '12px 0', padding: '12px 14px',
+                  background: 'rgba(100,116,139,.08)', border: '1px solid rgba(100,116,139,.3)',
+                  borderRadius: '8px', color: 'var(--muted)', fontSize: '13px', fontWeight: 600,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+                </svg>
+                <span>View mode — {roleLabel} access is read-only across every Quadrant.{isPlatformAdmin && !isSuperAdmin ? ' Contact a Super Admin to make changes.' : ''}</span>
+              </div>
+            )}
+
             {/* Submit */}
+            {!viewOnly && (
             <button
               type="button"
               className="qa-submit"
@@ -862,6 +904,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                     ? `Submit ${stackLabel} — Next: ${nextStack}`
                     : `Submit & Continue to Quadrant ${NEXT_QUAD[quad].toUpperCase()}`)}
             </button>
+            )}
           </div>
 
         </div>

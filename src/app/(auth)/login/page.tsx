@@ -13,7 +13,8 @@ const ROLES: { key: Role; label: string; enabled: boolean }[] = [
   { key: 'lead', label: 'Lead', enabled: true },
   { key: 'stump', label: 'Stump', enabled: true },
   { key: 'sub-stump', label: 'Sub-Stump', enabled: true },
-  { key: 'admin', label: 'Platform Admin', enabled: false },
+  { key: 'admin', label: 'Platform Admin', enabled: true },
+  { key: 'super-admin', label: 'Super Admin', enabled: true },
 ];
 
 // Rendered into a 2-col CSS grid: row 1 = C, D · row 2 = A, B

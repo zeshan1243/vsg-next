@@ -78,7 +78,8 @@ export default function MembersPage() {
   const params = useParams<{ id: string }>();
   const id     = params?.id ?? '';
   const mol    = getMolecule(id);
-  const { isStump, roleLabel } = useRole();
+  const { isStump, isSuperAdmin, isPlatformAdmin, roleLabel } = useRole();
+  const isPlatformView = isSuperAdmin || isPlatformAdmin;
 
   const [members,      setMembers]      = useState<Member[]>(INITIAL_MEMBERS);
   const [search,       setSearch]       = useState('');
@@ -276,9 +277,11 @@ export default function MembersPage() {
           <div>
             <div className="um-title">User Manager</div>
             <div className="um-desc">
-              {mol.name} · {isStump
-                ? `${roleLabel} access — Assign quadrants to Sub-Stumps`
-                : 'Manage members, roles, and invitations'}
+              {mol.name} · {isPlatformView
+                ? `${roleLabel} access — Read-only roster of every member on this molecule`
+                : isStump
+                  ? `${roleLabel} access — Assign quadrants to Sub-Stumps`
+                  : 'Manage members, roles, and invitations'}
             </div>
           </div>
           <div className="um-header-actions">
@@ -291,7 +294,7 @@ export default function MembersPage() {
               <span className="um-toggle-track"><span className="um-toggle-thumb" /></span>
               <span className="um-toggle-label">This molecule only</span>
             </label>
-            {!isStump && (
+            {!isStump && !isPlatformView && (
               <button type="button" className="btn-gold-sm" onClick={() => setInviteOpen(true)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -468,6 +471,10 @@ export default function MembersPage() {
                         {(() => {
                           if (m.role === 'creator') {
                             return <span className="um-act-owner">Owner</span>;
+                          }
+                          // Super Admins and Platform Admins are both read-only across the platform.
+                          if (isPlatformView) {
+                            return <span className="um-act-owner">—</span>;
                           }
                           // Stumps may only assign quadrants to active sub-stumps; everything else is read-only.
                           const stumpCanAssign = isStump && m.role === 'sub-stump' && m.status === 'active';

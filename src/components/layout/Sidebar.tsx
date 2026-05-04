@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import LogoMark from '@/components/auth/LogoMark';
 import { useRole } from '@/lib/useRole';
+import { fullNameForRole, initialsForRole } from '@/lib/profileByRole';
 
 interface NavItem {
   label: string;
@@ -41,6 +42,15 @@ const SettingsIcon = (
   </svg>
 );
 
+const UsersIcon = (
+  <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
 const SignOutIcon = (
   <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -48,15 +58,32 @@ const SignOutIcon = (
   </svg>
 );
 
-const NAV_SECTIONS: NavSection[] = [
-  { label: 'Overview',  items: [{ label: 'Dashboard',          href: '/dashboard', icon: DashIcon }] },
-  { label: 'Workspace', items: [{ label: 'My Molecules',       href: '/molecules', icon: MolIcon, badge: '5' }] },
-  { label: 'Account',   items: [{ label: 'Settings & Profile', href: '/profile',   icon: SettingsIcon }] },
-];
-
 export default function Sidebar() {
   const pathname = usePathname();
-  const { roleLabel } = useRole();
+  const { role, roleLabel, isSuperAdmin, isPlatformAdmin } = useRole();
+  const userName = fullNameForRole(role);
+  const userInitials = initialsForRole(role);
+  // Both admin tiers see the platform-wide views; only Super Admin can mutate.
+  const isPlatformView = isSuperAdmin || isPlatformAdmin;
+
+  const workspaceItems: NavItem[] = [
+    {
+      label: isPlatformView ? 'All Molecules' : 'My Molecules',
+      href: '/molecules',
+      icon: MolIcon,
+      badge: '5',
+    },
+  ];
+  if (isPlatformView) {
+    // Platform-wide User Manager — Super Admin manages, Platform Admin views.
+    workspaceItems.push({ label: 'User Manager', href: '/users', icon: UsersIcon });
+  }
+
+  const NAV_SECTIONS: NavSection[] = [
+    { label: 'Overview',  items: [{ label: 'Dashboard', href: '/dashboard', icon: DashIcon }] },
+    { label: 'Workspace', items: workspaceItems },
+    { label: 'Account',   items: [{ label: 'Settings & Profile', href: '/profile', icon: SettingsIcon }] },
+  ];
 
   return (
     <nav className="sidebar">
@@ -66,9 +93,9 @@ export default function Sidebar() {
       </div>
 
       <div className="creator-badge">
-        <div className="creator-avatar">SK</div>
+        <div className="creator-avatar">{userInitials}</div>
         <div>
-          <div className="c-name">Sarah Kaplan</div>
+          <div className="c-name">{userName}</div>
           <div className="c-role">{roleLabel}</div>
         </div>
       </div>

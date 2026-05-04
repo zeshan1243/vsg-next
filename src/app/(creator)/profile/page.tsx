@@ -1,22 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-
-interface PersonalInfo {
-  firstName: string;
-  lastName: string;
-  email: string;
-  organization: string;
-  phone: string;
-}
-
-const INITIAL_INFO: PersonalInfo = {
-  firstName: 'Sarah',
-  lastName: 'Kaplan',
-  email: 'sarah@company.com',
-  organization: 'Kaplan Ventures LLC',
-  phone: '(970) 555-0142',
-};
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useRole } from '@/lib/useRole';
+import { PROFILE_BY_ROLE, type PersonalInfo } from '@/lib/profileByRole';
 
 const PencilIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -54,8 +40,11 @@ interface PasswordDraft {
 const EMPTY_PASSWORD: PasswordDraft = { current: '', next: '', confirm: '' };
 
 export default function ProfilePage() {
-  const [info, setInfo] = useState<PersonalInfo>(INITIAL_INFO);
-  const [draft, setDraft] = useState<PersonalInfo>(INITIAL_INFO);
+  const { role, roleLabel, loaded } = useRole();
+  const profile = useMemo(() => PROFILE_BY_ROLE[role], [role]);
+
+  const [info, setInfo] = useState<PersonalInfo>(profile.info);
+  const [draft, setDraft] = useState<PersonalInfo>(profile.info);
   const [editing, setEditing] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -63,6 +52,15 @@ export default function ProfilePage() {
   const [pwDrawer, setPwDrawer] = useState(false);
   const [pw, setPw] = useState<PasswordDraft>(EMPTY_PASSWORD);
   const [twoFa, setTwoFa] = useState(true);
+
+  // Reset the form to the active role's identity once useRole resolves the
+  // stored role from localStorage (or whenever the role changes).
+  useEffect(() => {
+    if (!loaded) return;
+    setInfo(profile.info);
+    setDraft(profile.info);
+    setEditing(false);
+  }, [loaded, profile]);
 
   useEffect(() => {
     return () => {
@@ -142,20 +140,14 @@ export default function ProfilePage() {
                 {!photoUrl && initials}
               </div>
               <div className="avatar-name-display">{fullName}</div>
-              <div className="avatar-role-badge">Creator</div>
+              <div className="avatar-role-badge">{roleLabel}</div>
               <div className="avatar-stats-row">
-                <div className="avatar-stat">
-                  <div className="avatar-stat-val">5</div>
-                  <div className="avatar-stat-label">Molecules</div>
-                </div>
-                <div className="avatar-stat">
-                  <div className="avatar-stat-val">12</div>
-                  <div className="avatar-stat-label">Team</div>
-                </div>
-                <div className="avatar-stat">
-                  <div className="avatar-stat-val">42</div>
-                  <div className="avatar-stat-label">Tasks Done</div>
-                </div>
+                {profile.stats.map(s => (
+                  <div key={s.label} className="avatar-stat">
+                    <div className="avatar-stat-val">{s.val}</div>
+                    <div className="avatar-stat-label">{s.label}</div>
+                  </div>
+                ))}
               </div>
               <button
                 className="btn-change-photo"
@@ -181,11 +173,11 @@ export default function ProfilePage() {
               </div>
               <div className="info-row">
                 <span className="info-row-label">Role</span>
-                <span className="info-row-value">Creator</span>
+                <span className="info-row-value">{roleLabel}</span>
               </div>
               <div className="info-row">
                 <span className="info-row-label">Joined</span>
-                <span className="info-row-value">Jan 15, 2026</span>
+                <span className="info-row-value">{profile.joined}</span>
               </div>
               <div className="info-row">
                 <span className="info-row-label">Last Login</span>
