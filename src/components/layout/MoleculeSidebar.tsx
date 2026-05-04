@@ -9,6 +9,7 @@ import {
   getQuadMaxStep,
   getStumpAssignedQuads,
   getStumpSubmittedQuads,
+  getSubStumpAssignedQuads,
   isQuadUnlocked,
   TOTAL_STEPS,
   type Quad,
@@ -96,11 +97,12 @@ export default function MoleculeSidebar() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
-  const { isStump, roleLabel } = useRole();
+  const { isStump, isSubStump, roleLabel } = useRole();
   const [completed, setCompleted] = useState<Quad[]>([]);
   const [maxSteps, setMaxSteps] = useState<Record<Quad, number>>({ a: 0, b: 0, c: 0, d: 0 });
   const [stumpAssigned, setStumpAssigned] = useState<Quad[]>([]);
   const [stumpSubmitted, setStumpSubmitted] = useState<Quad[]>([]);
+  const [subStumpAssigned, setSubStumpAssigned] = useState<Quad[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -115,6 +117,7 @@ export default function MoleculeSidebar() {
     });
     setStumpAssigned(getStumpAssignedQuads());
     setStumpSubmitted(getStumpSubmittedQuads(id));
+    setSubStumpAssigned(getSubStumpAssignedQuads(id));
   }, [id, pathname]);
 
   if (!mol) return null;
@@ -191,8 +194,13 @@ export default function MoleculeSidebar() {
       <div className="sidebar-nav">
         <div className="snl">Molecule View</div>
 
-        {/* Stumps don't get the Finalized View — that's a Lead/Creator wrap-up. */}
-        {(isStump ? views.filter(v => v.key !== 'finalized') : views).map(v => {
+        {/* Stumps drop Finalized View. Sub-Stumps drop Members, Decisions and Finalized. */}
+        {(isSubStump
+          ? views.filter(v => v.key === 'overview' || v.key === 'requests')
+          : isStump
+            ? views.filter(v => v.key !== 'finalized')
+            : views
+        ).map(v => {
           const href = base + v.slug;
           const active = v.slug === '' ? pathname === base : pathname === href || pathname.startsWith(href + '/');
           // Finalized View is locked until every quadrant is completed.
@@ -241,8 +249,12 @@ export default function MoleculeSidebar() {
         {quadrants.map(q => {
           const href = base + q.slug;
           const active = pathname === href;
-          const unlocked = isStump ? stumpAssigned.includes(q.quad) : isQuadUnlocked(q.quad, completed);
-          const lockTitle = isStump
+          const unlocked = isSubStump
+            ? subStumpAssigned.includes(q.quad)
+            : isStump
+              ? stumpAssigned.includes(q.quad)
+              : isQuadUnlocked(q.quad, completed);
+          const lockTitle = (isStump || isSubStump)
             ? 'Locked — this Quadrant is not assigned to you'
             : `Complete Quadrant ${String.fromCharCode(q.quad.charCodeAt(0) - 1).toUpperCase()} to unlock`;
 
@@ -298,9 +310,11 @@ export default function MoleculeSidebar() {
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
           </svg>
-          {isStump
-            ? `${roleLabel} access. Work on assigned Quadrants and submit to the Lead for review.`
-            : `${roleLabel} access. Full control over objectives, assignments, and drill-downs.`}
+          {isSubStump
+            ? `${roleLabel} access. Execute steps in your assigned Quadrant — every submission is reviewed by your Stump.`
+            : isStump
+              ? `${roleLabel} access. Work on assigned Quadrants and submit to the Lead for review.`
+              : `${roleLabel} access. Full control over objectives, assignments, and drill-downs.`}
         </div>
       </div>
     </nav>

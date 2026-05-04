@@ -141,6 +141,80 @@ export function getStumpAssignedQuads(): Quad[] {
   }
 }
 
+// Sub-Stumps span multiple molecules and may hold different Quadrants in each
+// (with a different Stump as their reviewer per molecule). For the demo we
+// hard-code the per-molecule assignment; in production this comes from the API.
+export interface SubStumpStump {
+  name: string;
+  initials: string;
+  gradient: string;
+  online: boolean;
+}
+export interface SubStumpAssignment {
+  moleculeId: string;
+  quads: Quad[];
+  stump: SubStumpStump;
+}
+
+const SUBSTUMP_ASSIGNMENTS: SubStumpAssignment[] = [
+  {
+    moleculeId: 'premier-wedding-expo',
+    quads: ['a'],
+    stump: { name: 'Maria Chen',    initials: 'MC', gradient: 'linear-gradient(135deg, #FFAB00, #FFD54F)', online: true  },
+  },
+  {
+    moleculeId: 'q3-product-launch',
+    quads: ['c'],
+    stump: { name: 'Rachel Nguyen', initials: 'RN', gradient: 'linear-gradient(135deg, #EF4444, #F87171)', online: true  },
+  },
+  {
+    moleculeId: 'community-outreach-plan',
+    quads: ['b'],
+    stump: { name: 'Elena Torres',  initials: 'ET', gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)', online: false },
+  },
+];
+
+export function getSubStumpAssignments(): SubStumpAssignment[] {
+  return SUBSTUMP_ASSIGNMENTS;
+}
+
+// Per-molecule list of Quadrants the Sub-Stump is assigned to. When called
+// without a molId the result is the union across every molecule (handy for
+// the dashboard summary).
+export function getSubStumpAssignedQuads(molId?: string): Quad[] {
+  if (molId) {
+    return SUBSTUMP_ASSIGNMENTS.find(a => a.moleculeId === molId)?.quads ?? [];
+  }
+  return Array.from(new Set(SUBSTUMP_ASSIGNMENTS.flatMap(a => a.quads)));
+}
+
+// Per-step submission tracking for the Sub-Stump → Stump approval workflow.
+const SUBSTUMP_STEPS_KEY = (molId: string, quad: Quad) => `vsg:mol:${molId}:substump-submitted-steps-${quad}`;
+
+export function getSubStumpSubmittedSteps(molId: string, quad: Quad): number[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(SUBSTUMP_STEPS_KEY(molId, quad));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((n): n is number => typeof n === 'number' && n >= 1 && n <= TOTAL_STEPS);
+  } catch {
+    return [];
+  }
+}
+
+export function markSubStumpStepSubmitted(molId: string, quad: Quad, step: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getSubStumpSubmittedSteps(molId, quad);
+    if (current.includes(step)) return;
+    window.localStorage.setItem(SUBSTUMP_STEPS_KEY(molId, quad), JSON.stringify([...current, step]));
+  } catch {
+    // ignore
+  }
+}
+
 const STUMP_SUBMITTED_KEY = (molId: string) => `vsg:mol:${molId}:stump-submitted-quads`;
 
 export function getStumpSubmittedQuads(molId: string): Quad[] {

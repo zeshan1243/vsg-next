@@ -3,7 +3,15 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { MOLECULES, MOLECULE_STATE_CONFIG, getMoleculeStateCounts, type MoleculeState } from '@/lib/molecules';
-import { getStumpAssignedQuads, getStumpSubmittedQuads, type Quad } from '@/lib/progress';
+import {
+  getStumpAssignedQuads,
+  getStumpSubmittedQuads,
+  getSubStumpAssignments,
+  getSubStumpSubmittedSteps,
+  TOTAL_STEPS,
+  type Quad,
+  type SubStumpAssignment,
+} from '@/lib/progress';
 import { useRole } from '@/lib/useRole';
 
 const STATE_ORDER: MoleculeState[] = ['draft', 'active', 'paused', 'completed', 'archived'];
@@ -154,6 +162,13 @@ const STUMP_AUDIT_FEED = [
   { id: 7, action: 'approved',  user: 'James Thompson', target: 'Partner shortlist',    time: '2d ago',     icon: 'check-circle' },
 ];
 
+// Mock attention items for a Sub-Stump — multiple molecules with different Stumps.
+const SUBSTUMP_ATTENTION_ITEMS: AttentionItem[] = [
+  { id: 201, type: 'request-pending', title: 'Awaiting Stump Approval', molecule: 'Premier Wedding Expo',    moleculeId: 'premier-wedding-expo',    description: 'Q-A OKRs submitted to Maria Chen for review.',     time: '15m ago', priority: 'medium' },
+  { id: 202, type: 'flag-raised',     title: 'Stump Requested Changes', molecule: 'Premier Wedding Expo',    moleculeId: 'premier-wedding-expo',    description: 'Maria Chen asked for tighter Q-A vendor scoping.', time: '1h ago',  priority: 'high'   },
+  { id: 204, type: 'overdue-task',    title: 'Step Overdue',            molecule: 'Community Outreach Plan', moleculeId: 'community-outreach-plan', description: 'Q-B KPI step has been open with Elena Torres for 5 days.', time: '5d ago',  priority: 'high'   },
+];
+
 // Mock attention items relevant to a Stump (lead feedback, sub-stump prompts).
 const STUMP_ATTENTION_ITEMS: AttentionItem[] = [
   { id: 101, type: 'request-pending',    title: 'Awaiting Lead Review',     molecule: 'Premier Wedding Expo', moleculeId: 'premier-wedding-expo', description: 'Quadrant A submission is pending Lead approval.',          time: '1h ago', priority: 'medium' },
@@ -163,20 +178,35 @@ const STUMP_ATTENTION_ITEMS: AttentionItem[] = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { roleLabel, canCreateMolecule, isStump } = useRole();
+  const { roleLabel, canCreateMolecule, isStump, isSubStump } = useRole();
   const [today, setToday] = useState('');
   const [chartTab, setChartTab] = useState<ChartTab>('pipeline');
   const [attentionFilter, setAttentionFilter] = useState<'all' | Priority>('all');
   const [stumpAssigned, setStumpAssigned] = useState<Quad[]>([]);
   const [stumpSubmittedByMol, setStumpSubmittedByMol] = useState<Record<string, Quad[]>>({});
+  const [subStumpAssignments, setSubStumpAssignments] = useState<SubStumpAssignment[]>([]);
+  // submittedStepsByKey['<molId>:<quad>'] = number[] of steps submitted.
+  const [subStumpSubmittedByKey, setSubStumpSubmittedByKey] = useState<Record<string, number[]>>({});
 
   useEffect(() => {
-    if (!isStump) return;
-    setStumpAssigned(getStumpAssignedQuads());
-    const submitted: Record<string, Quad[]> = {};
-    for (const mol of MOLECULES) submitted[mol.id] = getStumpSubmittedQuads(mol.id);
-    setStumpSubmittedByMol(submitted);
-  }, [isStump]);
+    if (isStump) {
+      setStumpAssigned(getStumpAssignedQuads());
+      const submitted: Record<string, Quad[]> = {};
+      for (const mol of MOLECULES) submitted[mol.id] = getStumpSubmittedQuads(mol.id);
+      setStumpSubmittedByMol(submitted);
+    }
+    if (isSubStump) {
+      const assignments = getSubStumpAssignments();
+      setSubStumpAssignments(assignments);
+      const submittedByKey: Record<string, number[]> = {};
+      for (const a of assignments) {
+        for (const q of a.quads) {
+          submittedByKey[`${a.moleculeId}:${q}`] = getSubStumpSubmittedSteps(a.moleculeId, q);
+        }
+      }
+      setSubStumpSubmittedByKey(submittedByKey);
+    }
+  }, [isStump, isSubStump]);
 
   const stateCounts    = getMoleculeStateCounts();
   const totalMolecules = MOLECULES.length;
@@ -189,7 +219,41 @@ export default function DashboardPage() {
   const awaitingReview = totalSubmitted;
   const inProgressSlots = Math.max(0, totalAssignedSlots - totalSubmitted);
 
-  const activeAttention = isStump ? STUMP_ATTENTION_ITEMS : ATTENTION_ITEMS;
+  // Sub-Stump aggregate metrics across all molecules they hold a Quadrant on.
+  // Each row = one (molecule, quadrant) pair the Sub-Stump owns.
+  const subStumpRows = isSubStump
+    ? subStumpAssignments.flatMap(a => {
+        const mol = MOLECULES.find(m => m.id === a.moleculeId);
+        if (!mol) return [];
+        return a.quads.map(q => {
+          const submittedSteps = subStumpSubmittedByKey[`${a.moleculeId}:${q}`] ?? [];
+          return {
+            moleculeId: a.moleculeId,
+            moleculeName: mol.name,
+            quad: q,
+            stump: a.stump,
+            submittedCount: submittedSteps.length,
+          };
+        });
+      })
+    : [];
+  const subStumpTotalQuads = subStumpRows.length;
+  const subStumpTotalSteps = subStumpTotalQuads * TOTAL_STEPS;
+  const subStumpSubmittedCount = subStumpRows.reduce((sum, r) => sum + r.submittedCount, 0);
+  const subStumpRemainingSteps = Math.max(0, subStumpTotalSteps - subStumpSubmittedCount);
+  // Distinct Stumps the Sub-Stump reports to across molecules.
+  const subStumpStumps = (() => {
+    const seen = new Set<string>();
+    return subStumpRows
+      .map(r => r.stump)
+      .filter(s => (seen.has(s.name) ? false : (seen.add(s.name), true)));
+  })();
+
+  const activeAttention = isSubStump
+    ? SUBSTUMP_ATTENTION_ITEMS
+    : isStump
+      ? STUMP_ATTENTION_ITEMS
+      : ATTENTION_ITEMS;
   const attentionCounts: Record<'all' | Priority, number> = {
     all:    activeAttention.length,
     high:   activeAttention.filter(i => i.priority === 'high').length,
@@ -202,10 +266,147 @@ export default function DashboardPage() {
 
   useEffect(() => { setToday(formatToday()); }, []);
 
-  // For Stump: roster = their Sub-Stumps. For others: full active workspace.
-  const teamRoster = isStump ? STUMP_SUBSTUMPS : ACTIVE_USERS;
+  // Roster:
+  //   Sub-Stump → one entry per Stump they report to (across molecules)
+  //   Stump     → their Sub-Stumps
+  //   Others    → full active workspace
+  const subStumpRoster = subStumpStumps.map((s, idx) => {
+    // Aggregate which molecule/quadrant pairs this Stump reviews for the Sub-Stump.
+    const responsibilities = subStumpRows
+      .filter(r => r.stump.name === s.name)
+      .map(r => `${r.moleculeName} · Q-${r.quad.toUpperCase()}`)
+      .join(', ');
+    return {
+      id: `sub-stump-st-${idx}`,
+      name: s.name,
+      initials: s.initials,
+      role: responsibilities || 'Stump',
+      gradient: s.gradient,
+      online: s.online,
+    };
+  });
+  const teamRoster = isSubStump
+    ? subStumpRoster
+    : isStump
+      ? STUMP_SUBSTUMPS
+      : ACTIVE_USERS;
   const onlineCount = teamRoster.filter(u => u.online).length;
   const activityFeed = isStump ? STUMP_AUDIT_FEED : AUDIT_FEED;
+
+  // ─── Reusable card JSX so the same content can be placed in different
+  // layouts depending on the role.
+  const myStumpsCard = (
+    <div className="dash-card">
+      <div className="dash-card-head">
+        <div>
+          <div className="dash-card-title">{isSubStump ? 'My Stumps' : isStump ? 'My Sub-Stumps' : 'Team Online'}</div>
+          <div className="dash-card-sub">{onlineCount} of {teamRoster.length} active now</div>
+        </div>
+        <span className="dash-online-pulse">
+          <span /> live
+        </span>
+      </div>
+      <div className="dash-team-list">
+        {/* Sub-Stumps see every Stump they report to (online or not).
+            Other roles only see online teammates. */}
+        {(isSubStump ? teamRoster : teamRoster.filter(user => user.online)).map(user => (
+          <div key={user.id} className="dash-team-item">
+            <div className="dash-team-av-wrap">
+              <div className="dash-team-av" style={{ background: user.gradient }}>
+                {user.initials}
+              </div>
+              <div className={`dash-team-online-dot${user.online ? ' on' : ''}`} />
+            </div>
+            <div className="dash-team-meta">
+              <div className="dash-team-name">{user.name}</div>
+              <div className="dash-team-role">{user.role}</div>
+            </div>
+            <div className={`dash-team-status${user.online ? ' on' : ''}`}>
+              {user.online ? 'Online' : 'Offline'}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const attentionCard = (
+    <div className="attention-card">
+      <div className="attention-card-header">
+        <div className="attention-title-wrap">
+          <span className="attention-pulse" />
+          <span className="attention-title-text">Attention Required</span>
+          <span className="attention-count-pill">{activeAttention.length}</span>
+        </div>
+        <div className="attention-filter">
+          {(['all', 'high', 'medium', 'low'] as const).map(key => (
+            <button
+              key={key}
+              type="button"
+              className={`attention-filter-pill${attentionFilter === key ? ' active' : ''}`}
+              onClick={() => setAttentionFilter(key)}
+              disabled={key !== 'all' && attentionCounts[key] === 0}
+            >
+              {key === 'all' ? 'All' : key.charAt(0).toUpperCase() + key.slice(1)}
+              <span className="attention-filter-count">{attentionCounts[key]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="attention-table-wrap">
+        <table className="attention-table">
+          <thead>
+            <tr>
+              <th style={{ width: '44px' }}></th>
+              <th>Issue</th>
+              <th style={{ width: '180px' }}>Molecule</th>
+              <th style={{ width: '110px' }}>Priority</th>
+              <th style={{ width: '90px', textAlign: 'right' }}>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleAttention.length === 0 && (
+              <tr>
+                <td colSpan={5} className="attention-empty">No items match this filter.</td>
+              </tr>
+            )}
+            {visibleAttention.map(item => (
+              <tr
+                key={item.id}
+                className={`attention-row priority-${item.priority}`}
+                onClick={() => router.push(`/molecules/${item.moleculeId}`)}
+              >
+                <td>
+                  <div className={`attention-item-icon type-${item.type}`}>
+                    {ATTENTION_ICONS[item.type]}
+                  </div>
+                </td>
+                <td>
+                  <div className="attention-item-title">{item.title}</div>
+                  <div className="attention-item-desc">{item.description}</div>
+                </td>
+                <td>
+                  <span className="attention-mol-tag">{item.molecule}</span>
+                </td>
+                <td>
+                  <span className={`attention-pri-tag pri-${item.priority}`}>
+                    {item.priority === 'high' && (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6" /></svg>
+                    )}
+                    {item.priority === 'high' ? 'Urgent' : item.priority.charAt(0).toUpperCase() + item.priority.slice(1)}
+                  </span>
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  <span className="attention-item-time">{item.time}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -242,20 +443,37 @@ export default function DashboardPage() {
         {/* Hero strip */}
         <div className="dash-hero">
           <div>
-            <div className="dash-hero-eyebrow">{isStump ? `Welcome, ${roleLabel}` : 'Good morning, Sarah'}</div>
+            <div className="dash-hero-eyebrow">
+              {isSubStump || isStump ? `Welcome, ${roleLabel}` : 'Good morning, Sarah'}
+            </div>
             <div className="dash-hero-title">
-              {isStump
-                ? 'Drive your assigned Quadrants to completion.'
-                : 'Your workspace is performing well.'}
+              {isSubStump
+                ? 'Execute every assigned Quadrant step by step.'
+                : isStump
+                  ? 'Drive your assigned Quadrants to completion.'
+                  : 'Your workspace is performing well.'}
             </div>
             <div className="dash-hero-sub">
-              {isStump
-                ? `${totalAssignedSlots} assigned Quadrant${totalAssignedSlots === 1 ? '' : 's'} · ${awaitingReview} awaiting Lead review · ${onlineCount} of ${teamRoster.length} ${isStump ? 'Sub-Stumps' : 'teammates'} online`
-                : `${stateCounts.active} active molecules · ${onlineCount} of ${teamRoster.length} ${isStump ? 'Sub-Stumps' : 'teammates'} online`}
+              {isSubStump
+                ? `${subStumpTotalQuads} assigned Quadrant${subStumpTotalQuads === 1 ? '' : 's'} across ${subStumpAssignments.length} molecule${subStumpAssignments.length === 1 ? '' : 's'} · ${subStumpStumps.length} Stump${subStumpStumps.length === 1 ? '' : 's'} reviewing · ${subStumpSubmittedCount}/${subStumpTotalSteps} steps submitted`
+                : isStump
+                  ? `${totalAssignedSlots} assigned Quadrant${totalAssignedSlots === 1 ? '' : 's'} · ${awaitingReview} awaiting Lead review · ${onlineCount} of ${teamRoster.length} Sub-Stumps online`
+                  : `${stateCounts.active} active molecules · ${onlineCount} of ${teamRoster.length} teammates online`}
             </div>
           </div>
           <div className="dash-hero-meta">
-            {isStump ? (
+            {isSubStump ? (
+              <>
+                <div className="dash-hero-stat">
+                  <div className="dash-hero-stat-val">{subStumpSubmittedCount}</div>
+                  <div className="dash-hero-stat-label">Submitted</div>
+                </div>
+                <div className="dash-hero-stat">
+                  <div className="dash-hero-stat-val">{subStumpRemainingSteps}</div>
+                  <div className="dash-hero-stat-label">Remaining</div>
+                </div>
+              </>
+            ) : isStump ? (
               <>
                 <div className="dash-hero-stat">
                   <div className="dash-hero-stat-val">{inProgressSlots}</div>
@@ -283,7 +501,64 @@ export default function DashboardPage() {
 
         {/* KPI strip */}
         <div className="dash-kpis">
-          {isStump ? (
+          {isSubStump ? (
+            <>
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon green">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <line x1="12" y1="3" x2="12" y2="21" /><line x1="3" y1="12" x2="21" y2="12" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{subStumpTotalQuads}</div>
+                  <div className="dash-kpi-label">Assigned Quadrants</div>
+                  <div className="dash-kpi-hint">across {subStumpAssignments.length} molecule{subStumpAssignments.length === 1 ? '' : 's'}</div>
+                </div>
+              </div>
+
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon cyan">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{subStumpSubmittedCount}</div>
+                  <div className="dash-kpi-label">Steps Submitted</div>
+                  <div className="dash-kpi-hint">of {subStumpTotalSteps} steps total</div>
+                </div>
+              </div>
+
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon gold">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{subStumpStumps.length}</div>
+                  <div className="dash-kpi-label">Stumps Reviewing</div>
+                  <div className="dash-kpi-hint">{subStumpStumps.filter(s => s.online).length} online now</div>
+                </div>
+              </div>
+
+              <div className="dash-kpi">
+                <div className="dash-kpi-icon red">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </div>
+                <div className="dash-kpi-body">
+                  <div className="dash-kpi-value">{activeAttention.length}</div>
+                  <div className="dash-kpi-label">Needs Attention</div>
+                  <div className="dash-kpi-hint">{attentionCounts.high} urgent · {attentionCounts.medium} medium</div>
+                </div>
+              </div>
+            </>
+          ) : isStump ? (
             <>
               <div className="dash-kpi">
                 <div className="dash-kpi-icon green">
@@ -401,8 +676,107 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Charts / My Quadrants */}
-        {isStump ? (
+        {/* Charts / My Quadrant(s) */}
+        {isSubStump ? (
+          <div className="dash-card">
+            <div className="dash-card-head">
+              <div>
+                <div className="dash-card-title">My Quadrants</div>
+                <div className="dash-card-sub">Each Quadrant is reviewed by a different Stump</div>
+              </div>
+              <span className="dash-card-meta">{subStumpSubmittedCount}/{subStumpTotalSteps} steps submitted</span>
+            </div>
+            <div className="dash-card-body">
+              {subStumpRows.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+                  No Quadrants assigned yet. Your Stumps will assign work soon.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {subStumpRows.map(row => {
+                    const meta = QUAD_LABELS[row.quad];
+                    const status = row.submittedCount === 0
+                      ? 'Not Started'
+                      : row.submittedCount >= TOTAL_STEPS
+                        ? 'All Submitted'
+                        : `Step ${row.submittedCount + 1} of ${TOTAL_STEPS}`;
+                    const statusBg = row.submittedCount >= TOTAL_STEPS ? 'rgba(59,184,127,.10)' : 'rgba(255,171,0,.10)';
+                    const statusFg = row.submittedCount >= TOTAL_STEPS ? 'var(--success, #3BB87F)' : 'var(--gold, #FFAB00)';
+                    return (
+                      <button
+                        key={`${row.moleculeId}-${row.quad}`}
+                        type="button"
+                        onClick={() => router.push(`/molecules/${row.moleculeId}/quadrant-${row.quad}`)}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '40px 1fr auto auto auto',
+                          alignItems: 'center',
+                          gap: 14,
+                          padding: '12px 14px',
+                          border: '1px solid var(--border)',
+                          borderRadius: 10,
+                          background: 'transparent',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 36, height: 36, borderRadius: 8,
+                            background: meta.color, color: 'white',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 14, fontWeight: 700,
+                          }}
+                        >
+                          Q{meta.letter}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>
+                            {row.moleculeName} · Q-{meta.letter} {meta.phase}
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                            Artifact: {meta.artifact}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            paddingRight: 12, borderRight: '1px solid var(--border)',
+                          }}
+                          title={`Reports to ${row.stump.name}`}
+                        >
+                          <div
+                            style={{
+                              width: 24, height: 24, borderRadius: '50%',
+                              background: row.stump.gradient, color: 'white',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 10, fontWeight: 700,
+                            }}
+                          >
+                            {row.stump.initials}
+                          </div>
+                          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{row.stump.name}</span>
+                        </div>
+                        <span
+                          style={{
+                            padding: '4px 10px', borderRadius: 999,
+                            background: statusBg, color: statusFg,
+                            fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+                          }}
+                        >
+                          {status}
+                        </span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : isStump ? (
           <div className="dash-card">
             <div className="dash-card-head">
               <div>
@@ -552,145 +926,60 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Activity + Team online */}
-        <div className="dash-grid-1">
-          <div className="dash-col-main">
-            <div className="dash-card">
-              <div className="dash-card-head">
-                <div>
-                  <div className="dash-card-title">Recent Activity</div>
-                  <div className="dash-card-sub">
-                    {isStump ? 'Latest events from your Sub-Stumps' : 'Workspace events across the past week'}
+        {/* Sub-Stump: Attention Required (25%) + My Stumps (75%) on a single row.
+            Other roles keep the standard layout: Activity + Team Online row, then Attention Required below. */}
+        {isSubStump ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 1fr)',
+              gap: 16,
+              alignItems: 'start',
+            }}
+          >
+            <div style={{ minWidth: 0 }}>{attentionCard}</div>
+            <div style={{ minWidth: 0 }}>{myStumpsCard}</div>
+          </div>
+        ) : (
+          <>
+            <div className="dash-grid-1">
+              <div className="dash-col-main">
+                <div className="dash-card">
+                  <div className="dash-card-head">
+                    <div>
+                      <div className="dash-card-title">Recent Activity</div>
+                      <div className="dash-card-sub">
+                        {isStump
+                          ? 'Latest events from your Sub-Stumps'
+                          : 'Workspace events across the past week'}
+                      </div>
+                    </div>
+                    <span className="dash-card-meta">Last 7 days</span>
+                  </div>
+                  <div className="dash-feed">
+                    {activityFeed.map(item => (
+                      <div key={item.id} className="dash-feed-item">
+                        <div className="dash-feed-icon">{FEED_ICONS[item.icon]}</div>
+                        <div className="dash-feed-text">
+                          <div>
+                            <b>{item.user}</b>
+                            <span style={{ color: 'var(--muted)' }}> {item.action} </span>
+                            <em>{item.target}</em>
+                          </div>
+                          <div className="dash-feed-time">{item.time}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <span className="dash-card-meta">Last 7 days</span>
               </div>
-              <div className="dash-feed">
-                {activityFeed.map(item => (
-                  <div key={item.id} className="dash-feed-item">
-                    <div className="dash-feed-icon">{FEED_ICONS[item.icon]}</div>
-                    <div className="dash-feed-text">
-                      <div>
-                        <b>{item.user}</b>
-                        <span style={{ color: 'var(--muted)' }}> {item.action} </span>
-                        <em>{item.target}</em>
-                      </div>
-                      <div className="dash-feed-time">{item.time}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
 
-          <div className="dash-col-side">
-            <div className="dash-card">
-              <div className="dash-card-head">
-                <div>
-                  <div className="dash-card-title">{isStump ? 'My Sub-Stumps' : 'Team Online'}</div>
-                  <div className="dash-card-sub">{onlineCount} of {teamRoster.length} active now</div>
-                </div>
-                <span className="dash-online-pulse">
-                  <span /> live
-                </span>
-              </div>
-              <div className="dash-team-list">
-                {teamRoster.filter(user => user.online).map(user => (
-                  <div key={user.id} className="dash-team-item">
-                    <div className="dash-team-av-wrap">
-                      <div className="dash-team-av" style={{ background: user.gradient }}>
-                        {user.initials}
-                      </div>
-                      <div className="dash-team-online-dot on" />
-                    </div>
-                    <div className="dash-team-meta">
-                      <div className="dash-team-name">{user.name}</div>
-                      <div className="dash-team-role">{user.role}</div>
-                    </div>
-                    <div className="dash-team-status on">Online</div>
-                  </div>
-                ))}
-              </div>
+              <div className="dash-col-side">{myStumpsCard}</div>
             </div>
-          </div>
-        </div>
 
-        {/* Attention required */}
-        <div className="attention-card">
-          <div className="attention-card-header">
-            <div className="attention-title-wrap">
-              <span className="attention-pulse" />
-              <span className="attention-title-text">Attention Required</span>
-              <span className="attention-count-pill">{ATTENTION_ITEMS.length}</span>
-            </div>
-            <div className="attention-filter">
-              {(['all', 'high', 'medium', 'low'] as const).map(key => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`attention-filter-pill${attentionFilter === key ? ' active' : ''}`}
-                  onClick={() => setAttentionFilter(key)}
-                  disabled={key !== 'all' && attentionCounts[key] === 0}
-                >
-                  {key === 'all' ? 'All' : key.charAt(0).toUpperCase() + key.slice(1)}
-                  <span className="attention-filter-count">{attentionCounts[key]}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="attention-table-wrap">
-            <table className="attention-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '44px' }}></th>
-                  <th>Issue</th>
-                  <th style={{ width: '180px' }}>Molecule</th>
-                  <th style={{ width: '110px' }}>Priority</th>
-                  <th style={{ width: '90px', textAlign: 'right' }}>Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleAttention.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="attention-empty">No items match this filter.</td>
-                  </tr>
-                )}
-                {visibleAttention.map(item => (
-                  <tr
-                    key={item.id}
-                    className={`attention-row priority-${item.priority}`}
-                    onClick={() => router.push(`/molecules/${item.moleculeId}`)}
-                  >
-                    <td>
-                      <div className={`attention-item-icon type-${item.type}`}>
-                        {ATTENTION_ICONS[item.type]}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="attention-item-title">{item.title}</div>
-                      <div className="attention-item-desc">{item.description}</div>
-                    </td>
-                    <td>
-                      <span className="attention-mol-tag">{item.molecule}</span>
-                    </td>
-                    <td>
-                      <span className={`attention-pri-tag pri-${item.priority}`}>
-                        {item.priority === 'high' && (
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6" /></svg>
-                        )}
-                        {item.priority === 'high' ? 'Urgent' : item.priority.charAt(0).toUpperCase() + item.priority.slice(1)}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <span className="attention-item-time">{item.time}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+            {attentionCard}
+          </>
+        )}
 
       </div>
     </>

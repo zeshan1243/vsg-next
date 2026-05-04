@@ -10,6 +10,7 @@ import {
   getQuadMaxStep,
   getStumpAssignedQuads,
   getStumpSubmittedQuads,
+  getSubStumpAssignedQuads,
   isQuadUnlocked,
   type Quad,
 } from '@/lib/progress';
@@ -268,11 +269,12 @@ export default function MoleculeOverviewPage() {
   const router = useRouter();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
-  const { isStump, roleLabel } = useRole();
+  const { isStump, isSubStump, roleLabel } = useRole();
   const [completedQuads, setCompletedQuads] = useState<Quad[]>([]);
   const [maxSteps, setMaxSteps] = useState<Record<Quad, number>>({ a: 0, b: 0, c: 0, d: 0 });
   const [stumpAssigned, setStumpAssigned] = useState<Quad[]>([]);
   const [stumpSubmitted, setStumpSubmitted] = useState<Quad[]>([]);
+  const [subStumpAssigned, setSubStumpAssigned] = useState<Quad[]>([]);
   const [infoOpen, setInfoOpen] = useState(false);
   const [quadModal, setQuadModal] = useState<Quad | null>(null);
 
@@ -346,11 +348,16 @@ export default function MoleculeOverviewPage() {
     });
     setStumpAssigned(getStumpAssignedQuads());
     setStumpSubmitted(getStumpSubmittedQuads(id));
+    setSubStumpAssigned(getSubStumpAssignedQuads(id));
   }, [id]);
 
-  // Stumps only see Quadrants assigned to them as unlocked.
+  // Stumps and Sub-Stumps only see their assigned Quadrants as unlocked.
   const isQuadAccessible = (q: Quad) =>
-    isStump ? stumpAssigned.includes(q) : isQuadUnlocked(q, completedQuads);
+    isSubStump
+      ? subStumpAssigned.includes(q)
+      : isStump
+        ? stumpAssigned.includes(q)
+        : isQuadUnlocked(q, completedQuads);
 
   if (!mol) return null;
 
@@ -394,7 +401,7 @@ export default function MoleculeOverviewPage() {
             <div className="mol-card-title-group">
               <h1 className="mol-card-name">{mol.name}</h1>
               <span className="mol-card-badge">Event</span>
-              {!isStump && (
+              {!isStump && !isSubStump && (
                 <button type="button" className="mol-card-edit-btn" onClick={openEditMolModal} title="Edit Molecule">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
@@ -403,39 +410,41 @@ export default function MoleculeOverviewPage() {
               )}
             </div>
             <div className="mol-card-actions">
-              {!isStump && (
+              {!isStump && !isSubStump && (
                 <button type="button" className="mol-card-action" onClick={openWfModal} title="Edit Labels">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
                   </svg>
                 </button>
               )}
-              {!isStump && (
+              {!isStump && !isSubStump && (
                 <button type="button" className="mol-card-action" onClick={openLeadModal} title="Change Lead">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                   </svg>
                 </button>
               )}
-              <div className="mol-card-team">
-                <div className="mol-card-avatars">
-                  {(isStump ? STUMP_TEAM : TEAM).slice(0, 4).map(m => (
-                    <div key={m.initials} className="mol-card-av" style={{ background: m.gradient }} title={m.name}>
-                      {m.initials}
-                    </div>
-                  ))}
-                  {(isStump ? STUMP_TEAM : TEAM).length > 4 && (
-                    <div className="mol-card-av mol-card-av--more">+{(isStump ? STUMP_TEAM : TEAM).length - 4}</div>
+              {!isSubStump && (
+                <div className="mol-card-team">
+                  <div className="mol-card-avatars">
+                    {(isStump ? STUMP_TEAM : TEAM).slice(0, 4).map(m => (
+                      <div key={m.initials} className="mol-card-av" style={{ background: m.gradient }} title={m.name}>
+                        {m.initials}
+                      </div>
+                    ))}
+                    {(isStump ? STUMP_TEAM : TEAM).length > 4 && (
+                      <div className="mol-card-av mol-card-av--more">+{(isStump ? STUMP_TEAM : TEAM).length - 4}</div>
+                    )}
+                  </div>
+                  {!isStump && (
+                    <Link href={`/molecules/${id}/members`} className="mol-card-assign">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </Link>
                   )}
                 </div>
-                {!isStump && (
-                  <Link href={`/molecules/${id}/members`} className="mol-card-assign">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </Link>
-                )}
-              </div>
+              )}
             </div>
           </div>
 

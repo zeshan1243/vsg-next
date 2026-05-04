@@ -7,7 +7,9 @@ import { getMolecule } from '@/lib/molecules';
 import {
   NEXT_QUAD, QUAD_FINAL, STACK_LABEL, TOTAL_STEPS,
   bumpQuadMaxStep, getCompletedQuads, getQuadMaxStep, getStumpAssignedQuads, getStumpSubmittedQuads,
-  markQuadCompleted, markStumpQuadSubmitted, setActiveQuad, setActiveStep, stackForStep,
+  getSubStumpAssignedQuads, getSubStumpSubmittedSteps,
+  markQuadCompleted, markStumpQuadSubmitted, markSubStumpStepSubmitted,
+  setActiveQuad, setActiveStep, stackForStep,
   type Quad,
 } from '@/lib/progress';
 import { useRole } from '@/lib/useRole';
@@ -263,7 +265,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
   const router = useRouter();
   const id = params?.id ?? '';
   const mol = getMolecule(id);
-  const { isStump, roleLabel } = useRole();
+  const { isStump, isSubStump, roleLabel } = useRole();
 
   const [activeTab, setActiveTab] = useState<TabId>('vendors');
   const [tabSteps, setTabSteps] = useState<Record<TabId, number>>({
@@ -281,6 +283,9 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
   const [objectiveDraft, setObjectiveDraft] = useState('');
   const [submittedToLead, setSubmittedToLead] = useState(false);
   const [submittedModalOpen, setSubmittedModalOpen] = useState(false);
+  const [subStumpSubmittedSteps, setSubStumpSubmittedSteps] = useState<number[]>([]);
+  const [subStumpModalOpen, setSubStumpModalOpen] = useState(false);
+  const [subStumpFinalSubmitted, setSubStumpFinalSubmitted] = useState(false);
 
   const step = tabSteps[activeTab];
   const stack = stackForStep(quad, step);
@@ -299,7 +304,17 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
         router.replace(`/molecules/${id}`);
       }
     }
-  }, [id, quad, isStump, router]);
+    if (isSubStump) {
+      const submitted = getSubStumpSubmittedSteps(id, quad);
+      setSubStumpSubmittedSteps(submitted);
+      setSubStumpFinalSubmitted(submitted.includes(TOTAL_STEPS));
+      // Redirect Sub-Stumps away from Quadrants they aren't assigned to in *this* molecule.
+      const assigned = getSubStumpAssignedQuads(id);
+      if (!assigned.includes(quad)) {
+        router.replace(`/molecules/${id}`);
+      }
+    }
+  }, [id, quad, isStump, isSubStump, router]);
 
   useEffect(() => {
     if (!stumpOpen && !molInfoOpen) return;
@@ -321,6 +336,14 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
   }, [id, quad, step]);
 
   function advance() {
+    // Sub-Stumps submit each step to the Stump for approval before advancing.
+    if (isSubStump) {
+      markSubStumpStepSubmitted(id, quad, step);
+      setSubStumpSubmittedSteps(prev => prev.includes(step) ? prev : [...prev, step]);
+      if (step === TOTAL_STEPS) setSubStumpFinalSubmitted(true);
+      setSubStumpModalOpen(true);
+      return;
+    }
     if (step < TOTAL_STEPS) {
       const newStep = step + 1;
       bumpQuadMaxStep(id, quad, newStep);
@@ -340,6 +363,20 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
       setActiveStep(id, 1);
       bumpQuadMaxStep(id, next, 1);
       router.push(`/molecules/${id}/quadrant-${next}`);
+    }
+  }
+
+  // Sub-Stump's "Stump approved" simulation — closes the modal and advances
+  // to the next step (or back to overview after the final step).
+  function subStumpApproveAndAdvance() {
+    setSubStumpModalOpen(false);
+    if (step < TOTAL_STEPS) {
+      const newStep = step + 1;
+      bumpQuadMaxStep(id, quad, newStep);
+      setMaxStepReached(prev => Math.max(prev, newStep));
+      setTabSteps(prev => ({ ...prev, [activeTab]: newStep }));
+    } else {
+      router.push(`/molecules/${id}`);
     }
   }
 
@@ -582,8 +619,9 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
           ))}
         </div>
 
-        {/* Assignment widget — Lead picks a Stump, Stump picks a Sub-Stump. */}
-        {(assignedStump || step === 1) && (
+        {/* Assignment widget — Lead picks a Stump, Stump picks a Sub-Stump.
+            Sub-Stumps don't assign anyone, so the bar is hidden for them. */}
+        {!isSubStump && (assignedStump || step === 1) && (
           <div className="qa-stump-bar">
             <span className="qa-stump-bar-label">{isStump ? 'My Sub-Stump' : 'My Stump'}</span>
             {assignedStump ? (
@@ -609,7 +647,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
           <div className="qa-main">
             <div className="qa-obj-head">
               <div className="qa-obj-badge">OBJ</div>
-              {quad === 'a' && step === 1 && editingObjective ? (
+              {quad === 'a' && step === 1 && editingObjective && !isStump && !isSubStump ? (
                 <input
                   className="qa-obj-input"
                   value={objectiveDraft}
@@ -627,7 +665,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
               ) : (
                 <div className="qa-obj-title">
                   {tab.objective}
-                  {quad === 'a' && step === 1 && (
+                  {quad === 'a' && step === 1 && !isStump && !isSubStump && (
                     <button
                       type="button"
                       className="qa-obj-edit-btn"
@@ -780,22 +818,49 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
               </div>
             )}
 
+            {/* Sub-Stump — Stump review status banner (per current step) */}
+            {isSubStump && subStumpSubmittedSteps.includes(step) && (
+              <div
+                className="qa-substump-banner"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  margin: '12px 0', padding: '12px 14px',
+                  background: 'rgba(255,171,0,.08)', border: '1px solid rgba(255,171,0,.3)',
+                  borderRadius: '8px', color: 'var(--gold, #FFAB00)', fontSize: '13px', fontWeight: 600,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span>{stackLabel} submitted to your Stump — awaiting approval. Once approved you’ll move to the next stage.</span>
+              </div>
+            )}
+
             {/* Submit */}
             <button
               type="button"
               className="qa-submit"
               onClick={advance}
-              disabled={isStump && submittedToLead}
-              style={isStump && submittedToLead ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
+              disabled={(isStump && submittedToLead) || (isSubStump && (subStumpSubmittedSteps.includes(step) || subStumpFinalSubmitted))}
+              style={
+                (isStump && submittedToLead) ||
+                (isSubStump && (subStumpSubmittedSteps.includes(step) || subStumpFinalSubmitted))
+                  ? { opacity: 0.55, cursor: 'not-allowed' }
+                  : undefined
+              }
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
               </svg>
-              {isStump
-                ? (submittedToLead ? 'Submitted — Awaiting Lead Review' : 'Submit Work to Lead')
-                : (nextStack
-                  ? `Submit ${stackLabel} — Next: ${nextStack}`
-                  : `Submit & Continue to Quadrant ${NEXT_QUAD[quad].toUpperCase()}`)}
+              {isSubStump
+                ? (subStumpSubmittedSteps.includes(step)
+                    ? `${stackLabel} — Awaiting Stump Approval`
+                    : 'Submit Work to Stump')
+                : isStump
+                  ? (submittedToLead ? 'Submitted — Awaiting Lead Review' : 'Submit Work to Lead')
+                  : (nextStack
+                    ? `Submit ${stackLabel} — Next: ${nextStack}`
+                    : `Submit & Continue to Quadrant ${NEXT_QUAD[quad].toUpperCase()}`)}
             </button>
           </div>
 
@@ -1009,6 +1074,51 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
             </div>
             <div className="ov-modal-foot">
               <button type="button" className="fc-btn-secondary" onClick={() => setMolInfoOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sub-Stump: Submitted-to-Stump approval modal ── */}
+      {subStumpModalOpen && (
+        <div className="ov-modal-overlay" onClick={() => setSubStumpModalOpen(false)}>
+          <div className="ov-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: 480 }}>
+            <div className="ov-modal-header">
+              <div className="ov-modal-eyebrow">Submitted to Stump</div>
+              <button type="button" className="ov-modal-close" onClick={() => setSubStumpModalOpen(false)} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="ov-modal-body" style={{ textAlign: 'center', padding: '28px 24px' }}>
+              <div
+                style={{
+                  width: 64, height: 64, borderRadius: '50%',
+                  background: 'rgba(255,171,0,.12)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 18px', color: 'var(--gold, #FFAB00)',
+                }}
+              >
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 10px', color: 'var(--navy)' }}>
+                Your work was submitted to the Stump
+              </h2>
+              <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.55, margin: 0 }}>
+                {stackLabel} for Quadrant {QUAD_FULL_TITLE[quad]} is now awaiting your Stump’s approval.
+                Once approved, you’ll move to the next stage.
+              </p>
+            </div>
+            <div className="ov-modal-foot">
+              <button type="button" className="fc-btn-secondary" onClick={() => setSubStumpModalOpen(false)}>
+                Wait for Approval
+              </button>
+              <button type="button" className="fc-btn-primary" onClick={subStumpApproveAndAdvance}>
+                {step === TOTAL_STEPS ? 'Back to Overview' : 'Continue (Approved)'}
+              </button>
             </div>
           </div>
         </div>
