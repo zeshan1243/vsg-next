@@ -713,6 +713,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                 setDraft={setDraft}
                 onAdd={addOkr}
                 onRemove={removeOkr}
+                viewOnly={viewOnly}
               />
             )}
 
@@ -723,6 +724,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                 onDraft={(okrId, v) => patchOkr(okrId, o => ({ ...o, draft: v }))}
                 onAdd={addKpi}
                 onRemove={removeKpi}
+                viewOnly={viewOnly}
               />
             )}
 
@@ -733,6 +735,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                 onDraft={(okrId, kpiId, v) => patchKpi(okrId, kpiId, k => ({ ...k, draft: v }))}
                 onAdd={addJob}
                 onRemove={removeJob}
+                viewOnly={viewOnly}
               />
             )}
 
@@ -744,6 +747,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                 onAdd={addTask}
                 onRemove={removeTask}
                 onToggle={toggleTask}
+                viewOnly={viewOnly}
               />
             )}
 
@@ -756,6 +760,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                 finalStack={finalStack}
                 onAdd={addFinalOkr}
                 onRemove={removeFinalOkr}
+                viewOnly={viewOnly}
               />
             )}
 
@@ -766,6 +771,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                 onDraft={setFinalOkrDraft}
                 onAdd={addFinalKpi}
                 onRemove={removeFinalKpi}
+                viewOnly={viewOnly}
               />
             )}
 
@@ -776,6 +782,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                 onDraft={setFinalKpiDraft}
                 onAdd={addFinalJob}
                 onRemove={removeFinalJob}
+                viewOnly={viewOnly}
               />
             )}
 
@@ -787,6 +794,7 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
                 onAdd={addFinalTask}
                 onRemove={removeFinalTask}
                 onToggle={toggleFinalTask}
+                viewOnly={viewOnly}
               />
             )}
 
@@ -1219,10 +1227,11 @@ export default function QuadrantFlow({ quad }: { quad: Quad }) {
 
 // ─── Step 1: Flat OKRs ──────────────────────────────
 function Step1Okrs({
-  okrs, tabLabel, draft, setDraft, onAdd, onRemove,
+  okrs, tabLabel, draft, setDraft, onAdd, onRemove, viewOnly,
 }: {
   okrs: Okr[]; tabLabel: string; draft: string;
   setDraft: (v: string) => void; onAdd: () => void; onRemove: (okrId: string) => void;
+  viewOnly?: boolean;
 }) {
   return (
     <div className="qa-section">
@@ -1234,35 +1243,40 @@ function Step1Okrs({
             {okr.text}
             {okr.from && <span className="qa-okr-from"> (from {okr.from})</span>}
           </div>
-          <button type="button" className="qa-okr-x" onClick={() => onRemove(okr.id)} aria-label="Remove OKR">{XIcon}</button>
+          {!viewOnly && (
+            <button type="button" className="qa-okr-x" onClick={() => onRemove(okr.id)} aria-label="Remove OKR">{XIcon}</button>
+          )}
         </div>
       ))}
-      <div className="qa-add-row">
-        <input
-          className="qa-add-input"
-          type="text"
-          placeholder={`Add a new OKR for Internal ${tabLabel}...`}
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') onAdd(); }}
-        />
-        <button type="button" className="qa-add-btn" onClick={onAdd}>
-          {PlusIcon}
-          Add OKR
-        </button>
-      </div>
+      {!viewOnly && (
+        <div className="qa-add-row">
+          <input
+            className="qa-add-input"
+            type="text"
+            placeholder={`Add a new OKR for Internal ${tabLabel}...`}
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') onAdd(); }}
+          />
+          <button type="button" className="qa-add-btn" onClick={onAdd}>
+            {PlusIcon}
+            Add OKR
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Step 2: OKRs with KPIs against each ────────────
 function Step2Kpis({
-  okrs, tabLabel, onDraft, onAdd, onRemove,
+  okrs, tabLabel, onDraft, onAdd, onRemove, viewOnly,
 }: {
   okrs: Okr[]; tabLabel: string;
   onDraft: (okrId: string, v: string) => void;
   onAdd: (okrId: string) => void;
   onRemove: (okrId: string, kpiId: string) => void;
+  viewOnly?: boolean;
 }) {
   return (
     <>
@@ -1292,23 +1306,27 @@ function Step2Kpis({
               <div key={kpi.id} className="qb-kpi-row">
                 <div className="qb-kpi-num">{kpi.number}</div>
                 <div className="qb-kpi-text">{kpi.text}</div>
-                <button type="button" className="qa-okr-x" onClick={() => onRemove(okr.id, kpi.id)} aria-label="Remove KPI">{XIcon}</button>
+                {!viewOnly && (
+                  <button type="button" className="qa-okr-x" onClick={() => onRemove(okr.id, kpi.id)} aria-label="Remove KPI">{XIcon}</button>
+                )}
               </div>
             ))}
-            <div className="qa-add-row">
-              <input
-                className="qa-add-input"
-                type="text"
-                placeholder={`Add a KPI for Internal ${tabLabel}...`}
-                value={okr.draft}
-                onChange={e => onDraft(okr.id, e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') onAdd(okr.id); }}
-              />
-              <button type="button" className="qb-add-kpi-btn" onClick={() => onAdd(okr.id)}>
-                {PlusIcon}
-                Add KPI
-              </button>
-            </div>
+            {!viewOnly && (
+              <div className="qa-add-row">
+                <input
+                  className="qa-add-input"
+                  type="text"
+                  placeholder={`Add a KPI for Internal ${tabLabel}...`}
+                  value={okr.draft}
+                  onChange={e => onDraft(okr.id, e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') onAdd(okr.id); }}
+                />
+                <button type="button" className="qb-add-kpi-btn" onClick={() => onAdd(okr.id)}>
+                  {PlusIcon}
+                  Add KPI
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -1318,12 +1336,13 @@ function Step2Kpis({
 
 // ─── Step 3: KPIs with Jobs against each ────────────
 function Step3Jobs({
-  okrs, tabLabel, onDraft, onAdd, onRemove,
+  okrs, tabLabel, onDraft, onAdd, onRemove, viewOnly,
 }: {
   okrs: Okr[]; tabLabel: string;
   onDraft: (okrId: string, kpiId: string, v: string) => void;
   onAdd: (okrId: string, kpiId: string) => void;
   onRemove: (okrId: string, kpiId: string, jobId: string) => void;
+  viewOnly?: boolean;
 }) {
   const kpiPairs = okrs.flatMap(o => o.kpis.map(k => ({ okr: o, kpi: k })));
   return (
@@ -1362,23 +1381,27 @@ function Step3Jobs({
               <div key={job.id} className="qc-job-row">
                 <div className="qc-job-num">{job.number}</div>
                 <div className="qc-job-text">{job.text}</div>
-                <button type="button" className="qa-okr-x" onClick={() => onRemove(okr.id, kpi.id, job.id)} aria-label="Remove Job">{XIcon}</button>
+                {!viewOnly && (
+                  <button type="button" className="qa-okr-x" onClick={() => onRemove(okr.id, kpi.id, job.id)} aria-label="Remove Job">{XIcon}</button>
+                )}
               </div>
             ))}
-            <div className="qa-add-row">
-              <input
-                className="qa-add-input"
-                type="text"
-                placeholder={`Add a Job for Internal ${tabLabel}...`}
-                value={kpi.draft}
-                onChange={e => onDraft(okr.id, kpi.id, e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') onAdd(okr.id, kpi.id); }}
-              />
-              <button type="button" className="qc-add-job-btn" onClick={() => onAdd(okr.id, kpi.id)}>
-                {PlusIcon}
-                Add Job
-              </button>
-            </div>
+            {!viewOnly && (
+              <div className="qa-add-row">
+                <input
+                  className="qa-add-input"
+                  type="text"
+                  placeholder={`Add a Job for Internal ${tabLabel}...`}
+                  value={kpi.draft}
+                  onChange={e => onDraft(okr.id, kpi.id, e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') onAdd(okr.id, kpi.id); }}
+                />
+                <button type="button" className="qc-add-job-btn" onClick={() => onAdd(okr.id, kpi.id)}>
+                  {PlusIcon}
+                  Add Job
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -1388,13 +1411,14 @@ function Step3Jobs({
 
 // ─── Step 4: Jobs with Tasks against each ───────────
 function Step4Tasks({
-  okrs, tabLabel, onDraft, onAdd, onRemove, onToggle,
+  okrs, tabLabel, onDraft, onAdd, onRemove, onToggle, viewOnly,
 }: {
   okrs: Okr[]; tabLabel: string;
   onDraft: (okrId: string, kpiId: string, jobId: string, v: string) => void;
   onAdd: (okrId: string, kpiId: string, jobId: string) => void;
   onRemove: (okrId: string, kpiId: string, jobId: string, taskId: string) => void;
   onToggle: (okrId: string, kpiId: string, jobId: string, taskId: string) => void;
+  viewOnly?: boolean;
 }) {
   const jobRows = okrs.flatMap(o => o.kpis.flatMap(k => k.jobs.map(j => ({ okr: o, kpi: k, job: j }))));
   return (
@@ -1435,37 +1459,43 @@ function Step4Tasks({
                 <div className="qd-task-text">
                   {task.text}
                 </div>
-                <button
-                  type="button"
-                  className={`qd-task-toggle${task.done ? ' done' : ''}`}
-                  onClick={() => onToggle(okr.id, kpi.id, job.id, task.id)}
-                >
-                  {task.done ? (
-                    <>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      Completed
-                    </>
-                  ) : 'Mark Complete'}
-                </button>
-                <button type="button" className="qa-okr-x" onClick={() => onRemove(okr.id, kpi.id, job.id, task.id)} aria-label="Remove task">{XIcon}</button>
+                {!viewOnly && (
+                  <>
+                    <button
+                      type="button"
+                      className={`qd-task-toggle${task.done ? ' done' : ''}`}
+                      onClick={() => onToggle(okr.id, kpi.id, job.id, task.id)}
+                    >
+                      {task.done ? (
+                        <>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          Completed
+                        </>
+                      ) : 'Mark Complete'}
+                    </button>
+                    <button type="button" className="qa-okr-x" onClick={() => onRemove(okr.id, kpi.id, job.id, task.id)} aria-label="Remove task">{XIcon}</button>
+                  </>
+                )}
               </div>
             ))}
-            <div className="qa-add-row">
-              <input
-                className="qa-add-input"
-                type="text"
-                placeholder={`Add a Task for Internal ${tabLabel}...`}
-                value={job.draft}
-                onChange={e => onDraft(okr.id, kpi.id, job.id, e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') onAdd(okr.id, kpi.id, job.id); }}
-              />
-              <button type="button" className="qd-add-task-btn" onClick={() => onAdd(okr.id, kpi.id, job.id)}>
-                {PlusIcon}
-                Add Task
-              </button>
-            </div>
+            {!viewOnly && (
+              <div className="qa-add-row">
+                <input
+                  className="qa-add-input"
+                  type="text"
+                  placeholder={`Add a Task for Internal ${tabLabel}...`}
+                  value={job.draft}
+                  onChange={e => onDraft(okr.id, kpi.id, job.id, e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') onAdd(okr.id, kpi.id, job.id); }}
+                />
+                <button type="button" className="qd-add-task-btn" onClick={() => onAdd(okr.id, kpi.id, job.id)}>
+                  {PlusIcon}
+                  Add Task
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -1475,7 +1505,7 @@ function Step4Tasks({
 
 // ─── Step 5: Finalize OKRs (flat, linked to step-1 drafts) ─
 function Step5Finalize({
-  okrs, finalOkrs, tabLabel, quad, finalStack, onAdd, onRemove,
+  okrs, finalOkrs, tabLabel, quad, finalStack, onAdd, onRemove, viewOnly,
 }: {
   okrs: Okr[];
   finalOkrs: FinalOkr[];
@@ -1484,6 +1514,7 @@ function Step5Finalize({
   finalStack: string;
   onAdd: (text: string, linkedTo: string[]) => void;
   onRemove: (foId: string) => void;
+  viewOnly?: boolean;
 }) {
   const [draft, setDraft] = useState('');
   const [linkedTo, setLinkedTo] = useState<string[]>(okrs[0] ? [okrs[0].id] : []);
@@ -1556,11 +1587,14 @@ function Step5Finalize({
                   ? <span className="qa-okr-from"> (linked to OKR {linkedOkrs.map(o => o.number).join(', ')})</span>
                   : <span className="qa-okr-from" style={{ color: 'var(--muted)' }}> (unlinked)</span>}
               </div>
-              <button type="button" className="qa-okr-x" onClick={() => onRemove(fo.id)} aria-label="Remove finalized OKR">{XIcon}</button>
+              {!viewOnly && (
+                <button type="button" className="qa-okr-x" onClick={() => onRemove(fo.id)} aria-label="Remove finalized OKR">{XIcon}</button>
+              )}
             </div>
           );
         })}
 
+        {!viewOnly && (
         <div className="qa-add-row" style={{ flexWrap: 'wrap', gap: '10px' }}>
           {/* Multi-select dropdown for linking OKRs */}
           <div className="qa-link-dropdown" style={{ position: 'relative', minWidth: '200px' }}>
@@ -1623,6 +1657,7 @@ function Step5Finalize({
             Finalize
           </button>
         </div>
+        )}
       </div>
     </>
   );
@@ -1630,13 +1665,14 @@ function Step5Finalize({
 
 // ─── Q-B Step 5: KPIs against each Finalized OKR (mirrors step 2) ─
 function Step5FinalizeKpis({
-  finalOkrs, tabLabel, onDraft, onAdd, onRemove,
+  finalOkrs, tabLabel, onDraft, onAdd, onRemove, viewOnly,
 }: {
   finalOkrs: FinalOkr[];
   tabLabel: string;
   onDraft: (foId: string, v: string) => void;
   onAdd: (foId: string, text: string) => void;
   onRemove: (foId: string, fkId: string) => void;
+  viewOnly?: boolean;
 }) {
   function submit(fo: FinalOkr) {
     const text = fo.draft.trim();
@@ -1681,24 +1717,28 @@ function Step5FinalizeKpis({
                 <div key={fk.id} className="qb-kpi-row">
                   <div className="qb-kpi-num">{fk.number}</div>
                   <div className="qb-kpi-text">{fk.text}</div>
-                  <button type="button" className="qa-okr-x" onClick={() => onRemove(fo.id, fk.id)} aria-label="Remove KPI">{XIcon}</button>
+                  {!viewOnly && (
+                    <button type="button" className="qa-okr-x" onClick={() => onRemove(fo.id, fk.id)} aria-label="Remove KPI">{XIcon}</button>
+                  )}
                 </div>
               ))}
 
-              <div className="qa-add-row">
-                <input
-                  className="qa-add-input"
-                  type="text"
-                  placeholder={`Add a KPI for Internal ${tabLabel}...`}
-                  value={fo.draft}
-                  onChange={e => onDraft(fo.id, e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') submit(fo); }}
-                />
-                <button type="button" className="qb-add-kpi-btn" onClick={() => submit(fo)} disabled={!fo.draft.trim()}>
-                  {PlusIcon}
-                  Add KPI
-                </button>
-              </div>
+              {!viewOnly && (
+                <div className="qa-add-row">
+                  <input
+                    className="qa-add-input"
+                    type="text"
+                    placeholder={`Add a KPI for Internal ${tabLabel}...`}
+                    value={fo.draft}
+                    onChange={e => onDraft(fo.id, e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') submit(fo); }}
+                  />
+                  <button type="button" className="qb-add-kpi-btn" onClick={() => submit(fo)} disabled={!fo.draft.trim()}>
+                    {PlusIcon}
+                    Add KPI
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -1708,13 +1748,14 @@ function Step5FinalizeKpis({
 
 // ─── Q-C Step 5: Jobs against each Finalized KPI (mirrors step 3) ─
 function Step5FinalizeJobs({
-  finalOkrs, tabLabel, onDraft, onAdd, onRemove,
+  finalOkrs, tabLabel, onDraft, onAdd, onRemove, viewOnly,
 }: {
   finalOkrs: FinalOkr[];
   tabLabel: string;
   onDraft: (foId: string, fkId: string, v: string) => void;
   onAdd: (foId: string, fkId: string, text: string) => void;
   onRemove: (foId: string, fkId: string, fjId: string) => void;
+  viewOnly?: boolean;
 }) {
   const finalKpiPairs = finalOkrs.flatMap(fo => fo.finalKpis.map(fk => ({ fo, fk })));
 
@@ -1761,24 +1802,28 @@ function Step5FinalizeJobs({
               <div key={fj.id} className="qc-job-row">
                 <div className="qc-job-num">{fj.number}</div>
                 <div className="qc-job-text">{fj.text}</div>
-                <button type="button" className="qa-okr-x" onClick={() => onRemove(fo.id, fk.id, fj.id)} aria-label="Remove Job">{XIcon}</button>
+                {!viewOnly && (
+                  <button type="button" className="qa-okr-x" onClick={() => onRemove(fo.id, fk.id, fj.id)} aria-label="Remove Job">{XIcon}</button>
+                )}
               </div>
             ))}
 
-            <div className="qa-add-row">
-              <input
-                className="qa-add-input"
-                type="text"
-                placeholder={`Add a Job for Internal ${tabLabel}...`}
-                value={fk.draft}
-                onChange={e => onDraft(fo.id, fk.id, e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') submit(fo, fk); }}
-              />
-              <button type="button" className="qc-add-job-btn" onClick={() => submit(fo, fk)} disabled={!fk.draft.trim()}>
-                {PlusIcon}
-                Add Job
-              </button>
-            </div>
+            {!viewOnly && (
+              <div className="qa-add-row">
+                <input
+                  className="qa-add-input"
+                  type="text"
+                  placeholder={`Add a Job for Internal ${tabLabel}...`}
+                  value={fk.draft}
+                  onChange={e => onDraft(fo.id, fk.id, e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') submit(fo, fk); }}
+                />
+                <button type="button" className="qc-add-job-btn" onClick={() => submit(fo, fk)} disabled={!fk.draft.trim()}>
+                  {PlusIcon}
+                  Add Job
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -1788,7 +1833,7 @@ function Step5FinalizeJobs({
 
 // ─── Q-D Step 5: Tasks against each Finalized Job (mirrors step 4) ─
 function Step5FinalizeTasks({
-  finalOkrs, tabLabel, onDraft, onAdd, onRemove, onToggle,
+  finalOkrs, tabLabel, onDraft, onAdd, onRemove, onToggle, viewOnly,
 }: {
   finalOkrs: FinalOkr[];
   tabLabel: string;
@@ -1796,6 +1841,7 @@ function Step5FinalizeTasks({
   onAdd: (foId: string, fkId: string, fjId: string, text: string) => void;
   onRemove: (foId: string, fkId: string, fjId: string, ftId: string) => void;
   onToggle: (foId: string, fkId: string, fjId: string, ftId: string) => void;
+  viewOnly?: boolean;
 }) {
   const finalJobTriples = finalOkrs.flatMap(fo =>
     fo.finalKpis.flatMap(fk => fk.finalJobs.map(fj => ({ fo, fk, fj })))
@@ -1846,38 +1892,44 @@ function Step5FinalizeTasks({
                 <div className="qd-task-text">
                   {ft.text}
                 </div>
-                <button
-                  type="button"
-                  className={`qd-task-toggle${ft.done ? ' done' : ''}`}
-                  onClick={() => onToggle(fo.id, fk.id, fj.id, ft.id)}
-                >
-                  {ft.done ? (
-                    <>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      Completed
-                    </>
-                  ) : 'Mark Complete'}
-                </button>
-                <button type="button" className="qa-okr-x" onClick={() => onRemove(fo.id, fk.id, fj.id, ft.id)} aria-label="Remove task">{XIcon}</button>
+                {!viewOnly && (
+                  <>
+                    <button
+                      type="button"
+                      className={`qd-task-toggle${ft.done ? ' done' : ''}`}
+                      onClick={() => onToggle(fo.id, fk.id, fj.id, ft.id)}
+                    >
+                      {ft.done ? (
+                        <>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          Completed
+                        </>
+                      ) : 'Mark Complete'}
+                    </button>
+                    <button type="button" className="qa-okr-x" onClick={() => onRemove(fo.id, fk.id, fj.id, ft.id)} aria-label="Remove task">{XIcon}</button>
+                  </>
+                )}
               </div>
             ))}
 
-            <div className="qa-add-row">
-              <input
-                className="qa-add-input"
-                type="text"
-                placeholder={`Add a Task for Internal ${tabLabel}...`}
-                value={fj.draft}
-                onChange={e => onDraft(fo.id, fk.id, fj.id, e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') submit(fo, fk, fj); }}
-              />
-              <button type="button" className="qd-add-task-btn" onClick={() => submit(fo, fk, fj)} disabled={!fj.draft.trim()}>
-                {PlusIcon}
-                Add Task
-              </button>
-            </div>
+            {!viewOnly && (
+              <div className="qa-add-row">
+                <input
+                  className="qa-add-input"
+                  type="text"
+                  placeholder={`Add a Task for Internal ${tabLabel}...`}
+                  value={fj.draft}
+                  onChange={e => onDraft(fo.id, fk.id, fj.id, e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') submit(fo, fk, fj); }}
+                />
+                <button type="button" className="qd-add-task-btn" onClick={() => submit(fo, fk, fj)} disabled={!fj.draft.trim()}>
+                  {PlusIcon}
+                  Add Task
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ))}
